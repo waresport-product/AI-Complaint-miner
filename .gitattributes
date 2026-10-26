@@ -1,0 +1,3 @@
+# Store text files with LF line endings so Windows and macOS/Linux checkouts match.
+* text=auto eol=lf
+*.xlsx binary

@@ -1,0 +1,34 @@
+{
+  "name": "competitor-complaint-miner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Collects public complaints about competing sports club management platforms and exports a sales-ready Excel workbook.",
+  "main": "src/services/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/waresport-product/AI-Complaint-miner.git"
+  },
+  "scripts": {
+    "mine": "node scripts/run.js",
+    "schedule": "node scripts/schedule.js",
+    "export": "node scripts/run.js --export-only",
+    "test": "jest"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "axios": "^1.5.1",
+    "dotenv": "^16.0.3",
+    "exceljs": "^4.4.0",
+    "node-cron": "^4.2.1",
+    "openai": "^4.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "roots": ["<rootDir>/tests"]
+  }
+}
