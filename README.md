@@ -22,7 +22,7 @@ customers, and it never posts, comments or contacts anyone. It only reads public
 5. [Competitors tracked](#5-competitors-tracked)
 6. [Quality and trust safeguards](#6-quality-and-trust-safeguards)
 7. [Lead tiers and scoring](#7-lead-tiers-and-scoring)
-8. [Setup](#8-setup)
+8. [Setup](#8-setup), including [Reddit with Agent Reach](#3-set-up-reddit-with-agent-reach)
 9. [Running it](#9-running-it)
 10. [Output files](#10-output-files)
 11. [Configuration](#11-configuration)
@@ -88,6 +88,11 @@ which is handy for a "what's new this week" review.
 > **Please close the workbook in Excel before a run.** Excel locks open files. If it's open, the
 > run saves a dated copy (`complaint-miner-<date>.xlsx`) instead.
 
+**Running the miner yourself?** Reddit complaints (often the most candid ones, from club owners)
+need Agent Reach installed and logged in on your computer. Follow
+[Set up Reddit with Agent Reach](#3-set-up-reddit-with-agent-reach) once. If someone else runs the
+miner and shares the workbook, you don't need any setup.
+
 **Contacting people:** the tool deliberately doesn't collect contact details and isn't built for
 emailing reviewers. Use it to understand competitor weaknesses, find which platforms prospects
 struggle with, and sharpen your messaging.
@@ -148,7 +153,7 @@ up newly posted complaints and pages that failed last time.
 
 | Source | How it's collected | Login or key needed | Notes |
 |---|---|---|---|
-| **Reddit** | [Agent Reach](https://github.com/Panniantong/Agent-Reach) drives a real, logged-in browser on the machine running the miner | Agent Reach installed, and a Reddit login done once by a person | Reddit blocks normal scrapers, so this is the only reliable path. Search and post reading are separate; if search is down, links found by the web search are still read |
+| **Reddit** | [Agent Reach](https://github.com/Panniantong/Agent-Reach) drives a real, logged-in browser on the machine running the miner | Agent Reach installed, and a Reddit login done once by a person ([setup steps](#3-set-up-reddit-with-agent-reach)) | Reddit blocks normal scrapers, so this is the only reliable path. Search and post reading are separate; if search is down, links found by the web search are still read |
 | **Review sites** (Capterra, G2, Software Advice, GetApp, Trustpilot) | Firecrawl search + scrape | `FIRECRAWL_API_KEY` | Many reviews are mostly positive with a "cons" section. The star rating is recorded so these are weighted down |
 | **Forums and communities** | Firecrawl search (past year) + scrape | `FIRECRAWL_API_KEY` | Facebook and Instagram can't be scraped and are skipped |
 | **Apple App Store** | Apple's free public review feed | None | Up to 100 most recent reviews per app per run. Apple sometimes throttles the feed; the run report warns when that happens |
@@ -218,7 +223,7 @@ The tier is a suggestion to help prioritise. Sales should make the final call.
 | **Node.js 18+** | Runs the miner |
 | **OpenAI API key** | AI analysis of complaints |
 | **Firecrawl API key** ([firecrawl.dev](https://firecrawl.dev)) | Web search and scraping of review sites and forums |
-| **Agent Reach** (optional, for Reddit) | Python tool installed with [uv](https://docs.astral.sh/uv/). Without it, Reddit is skipped with a warning and everything else still runs |
+| **Agent Reach** (optional, for Reddit) | Free Python tool installed with [uv](https://docs.astral.sh/uv/). Full steps in [Set up Reddit with Agent Reach](#3-set-up-reddit-with-agent-reach). Without it, Reddit is skipped with a warning and everything else still runs |
 
 ### 1. Install
 
@@ -252,22 +257,115 @@ Open `.env` and fill in:
 `.env` is git-ignored. **Never commit it or paste keys into chats or tickets.** If a key leaks,
 rotate it in the provider's dashboard.
 
-### 3. Set up Reddit (optional)
+### 3. Set up Reddit with Agent Reach
 
+Reddit is one of the best sources: club owners post detailed rants and "what should we switch to?"
+threads there. But Reddit blocks normal scrapers (including Firecrawl), so the miner reads Reddit
+through **[Agent Reach](https://github.com/Panniantong/Agent-Reach)**, a free, open-source
+command-line tool that drives a real, logged-in browser to search Reddit and read posts **with
+their comments**.
+
+**What you need to know first:**
+
+- Agent Reach is **not part of this repo**. It's a separate program installed once on the
+  computer that runs the miner. The miner calls it automatically on every run.
+- **Only the computer that runs the miner needs it.** We recommend one person (or one shared,
+  always-on computer) runs the miner and shares the Excel file. The rest of the sales team then
+  needs no setup at all.
+- It is **optional**. Without it, the miner prints `Reddit skipped: agent-reach CLI not
+  available` and still collects from review sites, forums and the App Store.
+- **Windows:** run every command below, and the miner itself, in **PowerShell**. In Git Bash and
+  some other terminals, Agent Reach fails with `Unable to create process using …python.exe`.
+
+#### 3a. Install uv (the installer Agent Reach uses)
+
+```powershell
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
 ```bash
-# Install from GitHub only. The PyPI package called "agent-reach" is a different project.
-uv tool install https://github.com/Panniantong/Agent-Reach/releases/latest/download/agent-reach.zip
-agent-reach setup
-agent-reach add reddit
-agent-reach login reddit        # a browser window opens; a person logs in to Reddit there
-agent-reach check reddit --text # PASS/FAIL per Reddit action (search, subreddit, …)
+# macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-The login is saved in Agent Reach's own browser profile and reused on later runs. Use a
-dedicated or secondary Reddit account if possible.
+Close and reopen the terminal, then check with `uv --version`.
 
-> **Windows:** run Agent Reach and the miner from **PowerShell**. From Git Bash and some other
-> terminals, the uv launcher fails with "Unable to create process using …python.exe".
+#### 3b. Install Agent Reach
+
+```bash
+# Install from GitHub only. The PyPI package called "agent-reach" is a DIFFERENT project.
+uv tool install https://github.com/Panniantong/Agent-Reach/releases/latest/download/agent-reach.zip
+agent-reach version        # should print JSON with "ok": true
+```
+
+If `agent-reach` isn't found, run `uv tool update-shell`, open a new terminal and try again.
+
+#### 3c. Turn on the Reddit channel
+
+```bash
+agent-reach setup          # first-time setup; prints an installation report
+agent-reach add reddit     # installs what Reddit needs (Node.js, OpenCLI, a dedicated browser). No admin password
+```
+
+#### 3d. Log in to Reddit (a person must do this once)
+
+```bash
+agent-reach login reddit
+```
+
+A browser window opens on Reddit's login page. It may appear **behind other windows**, so check
+the taskbar. Log in there yourself. Agent Reach never asks for or stores your password; the login
+is kept in its own browser profile (separate from your normal browser) and reused on every run.
+
+Use a **dedicated or secondary Reddit account** if possible, and don't share the login between
+computers.
+
+#### 3e. Check it works
+
+```bash
+agent-reach check reddit --text
+```
+
+You'll see PASS or FAIL per Reddit action, for example:
+
+```
+PASS  reddit search [opencli] …
+PASS  reddit subreddit [opencli] …
+```
+
+To try reading one post with its comments:
+
+```bash
+agent-reach reddit read "https://www.reddit.com/r/Pickleball/comments/<id>/<title>/" --backend opencli
+```
+
+#### 3f. What the miner does with Agent Reach on each run
+
+You don't run these yourself; the miner does it automatically during `npm run mine`:
+
+1. **Searches Reddit** for each competitor (2 searches each, spaced 11 seconds apart), e.g.
+   `"CourtReserve"` and `CourtReserve pickleball`.
+2. **Filters** the results: keeps only posts that really mention the competitor and were posted
+   in the last 2 years, and skips posts already read in the last 30 days.
+3. **Reads the top posts with their comments** (up to 5 most-discussed per competitor), one at a
+   time with a short pause. A read that times out is retried once.
+4. **Also reads Reddit links found by the web search**, since Firecrawl can't open them.
+5. Passes each post and its comments to the AI, which extracts complaints. Quotes from comments
+   are checked word for word like any other source.
+6. **Stops using Reddit for that run** if Agent Reach reports `NEED_LOGIN`, `RATE_LIMITED`,
+   `PLATFORM_BLOCKED` or `BUSY`, instead of hammering Reddit. The rest of the run continues.
+
+Agent Reach is **read-only**: the miner never posts, comments, votes or messages anyone.
+
+#### 3g. Keeping it working
+
+| Situation | What to do |
+|---|---|
+| Run report shows `NEED_LOGIN` | Session expired: run `agent-reach login reddit` and log in again |
+| Reddit search fails with `UPSTREAM_BROKEN … "<body clas…" is not valid JSON` | Reddit is blocking search for now (reading posts usually still works). Run `npm run mine -- --reddit-searches 0` until `agent-reach check reddit --text` shows search as PASS again |
+| Something seems broken | `agent-reach doctor --text` shows the status of every channel |
+| Occasionally (e.g. monthly) | `agent-reach update` keeps the tool and its browser parts current |
+| Moving the miner to another computer | Repeat steps 3a–3e there. The Reddit login doesn't transfer |
 
 ### 4. Check it works
 
@@ -437,7 +535,7 @@ Measured on real runs in October 2026:
 |---|---|---|
 | `Set OPENAI_API_KEY (or GEMINI_API_KEY)…` | No AI key in `.env` | Add `OPENAI_API_KEY`, or use `--dry-run` / `npm run export` |
 | `Web skipped: FIRECRAWL_API_KEY is not set` | No Firecrawl key | Add it to `.env` |
-| `Reddit skipped: agent-reach CLI not available` | Agent Reach missing, or not on PATH in this terminal | Install it (section 8), use PowerShell on Windows, or set `AGENT_REACH_BIN` |
+| `Reddit skipped: agent-reach CLI not available` | Agent Reach missing, or not on PATH in this terminal | Install it ([steps](#3-set-up-reddit-with-agent-reach)), use PowerShell on Windows, or set `AGENT_REACH_BIN` |
 | `Unable to create process using …python.exe` | uv launcher issue in Git Bash and some terminals | Run from PowerShell |
 | Reddit `NEED_LOGIN` and the channel stops | Reddit session expired | `agent-reach login reddit` and log in again |
 | Reddit search `UPSTREAM_BROKEN … "<body clas…" is not valid JSON` | Reddit is blocking search for now (reading posts usually still works) | Run with `--reddit-searches 0`. Check later with `agent-reach check reddit --text` |
