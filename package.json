@@ -12,6 +12,8 @@
     "mine": "node scripts/run.js",
     "schedule": "node scripts/schedule.js",
     "export": "node scripts/run.js --export-only",
+    "insights": "node scripts/run.js --export-only",
+    "api": "node scripts/api.js",
     "test": "jest"
   },
   "engines": {

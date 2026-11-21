@@ -11,7 +11,8 @@
  *   --sources reddit,web,appstore   (default: all)
  *   --competitors key1,key2         (default: all in src/constants.js)
  *   --dry-run                       collect only, write documents.xlsx, no LLM calls
- *   --export-only                   rebuild complaint-miner.xlsx from saved results (no scraping)
+ *   --export-only                   rebuild complaint-miner.xlsx, insights.json and alerts from saved
+ *                                   results (no scraping, no AI cost)
  *   --out <dir>                     output directory (default: output/complaint-miner)
  *   --reddit-reads <n>              posts read per competitor (default 5)
  *   --reddit-searches <n>           Reddit searches per competitor (default 2; 0 = only read Reddit

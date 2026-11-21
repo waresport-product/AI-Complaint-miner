@@ -8,6 +8,18 @@ SportsEngine and 17 others). It pulls out genuine complaints, checks every quote
 against the original page, scores how promising each one is, and writes everything to one Excel
 workbook for the sales team.
 
+On top of the raw complaints it builds **market intelligence**, with no spreadsheet work needed:
+- a live **competitor map** with **trend detection**;
+- **sport and region filters**;
+- **automatic issue clusters**;
+- ranked **hot accounts and conversations**;
+- auto-generated **sales playbooks**;
+- **CRM-ready alerts**.
+
+All of it is available in the workbook, as `insights.json`, and through a read-only **API** the
+WareSport website can use. See [docs/10X-GOALS.md](docs/10X-GOALS.md) for where this is heading
+and [docs/INTEGRATION.md](docs/INTEGRATION.md) for the website integration.
+
 It is a standalone tool. It does not connect to the WareSport platform, its database or its
 customers, and it never posts, comments or contacts anyone. It only reads public content.
 
@@ -16,7 +28,7 @@ customers, and it never posts, comments or contacts anyone. It only reads public
 ## Contents
 
 1. [Who this is for](#1-who-this-is-for)
-2. [For the sales team: using the workbook](#2-for-the-sales-team-using-the-workbook)
+2. [For the sales team: using the workbook](#2-for-the-sales-team-using-the-workbook), including [the intelligence sheets](#the-intelligence-sheets-no-filtering-needed)
 3. [How it works](#3-how-it-works)
 4. [Where the data comes from](#4-where-the-data-comes-from)
 5. [Competitors tracked](#5-competitors-tracked)
@@ -39,8 +51,8 @@ customers, and it never posts, comments or contacts anyone. It only reads public
 | Reader | What to read | What you get |
 |---|---|---|
 | **Sales team** | Sections 2, 7 and 9 (first two commands) | A ranked list of real competitor complaints, with the exact quote and a link to the source, to use in outreach and calls |
-| **Manager** | Sections 3, 4, 6, 13 and 15 | How the data is gathered, why it can be trusted, what it costs and what it deliberately doesn't do |
-| **Developers** | Everything, especially 8, 11, 12 and 14 | How to install, configure, extend and host it |
+| **Manager** | Sections 3, 4, 6, 13 and 15, plus [docs/10X-GOALS.md](docs/10X-GOALS.md) | How the data is gathered, why it can be trusted, what it costs, what it deliberately doesn't do, and the 10x plan |
+| **Developers** | Everything, especially 8, 11, 12 and 14, plus [docs/INTEGRATION.md](docs/INTEGRATION.md) | How to install, configure, extend and host it, and how to integrate the insights API into the WareSport website |
 
 ---
 
@@ -75,15 +87,34 @@ sheet. Every column header has a hover note (the small red triangle) explaining 
 | Review Rating | Stars the author gave (1–5). Blank for forum and Reddit posts |
 | Switching Intent | *considering* (looking for alternatives), *switched_away* (already left) or *none* |
 | Author Type | *club_owner_admin* (decision-maker), *club_staff*, *coach*, *player*, *parent* or *unknown* |
-| Location / Sport | Only filled when the source states it. Never guessed |
+| Location | Only filled when the source states it. Never guessed |
+| Sport | Stated in the complaint, or recognised from its text or subreddit (e.g. r/Pickleball). Blank when unknown |
 | Source | Where it was found: Reddit (with subreddit), App Store, Capterra, G2, Trustpilot, Software Advice, GetApp, Google Play, … |
 | Source URL | Click to open the original post or review |
 | Posted On | When the original was written, when the source shows it |
 | WareSport Angle | Suggested WareSport talking point for this kind of problem |
+| Region | Country or region from a stated location, or the App Store storefront country for app reviews |
 | Complaint ID | Internal ID used to avoid duplicates. Not needed by sales |
 
 Each run also saves **`runs/<date-time>/new-complaints.xlsx`** with only that run's new finds,
 which is handy for a "what's new this week" review.
+
+### The intelligence sheets (no filtering needed)
+
+The same workbook has six more sheets, rebuilt on every run:
+
+| Sheet | What it answers |
+|---|---|
+| **Competitor Map** | Which competitors have the most unhappy customers right now? Complaints, Hot, people considering a switch, complaints from owners/staff, top 3 pains, and whether complaints are *rising / falling / new / steady* (last 30 days vs the 60 before) |
+| **Issue Clusters** | What are people actually complaining about, across all competitors? E.g. "AI chatbot instead of human support", "Contracts, cancellation & auto-renewal", "In-app ads", each with counts, trend, top competitors and an example quote. *Emerging* clusters are new recurring phrases the system spotted by itself |
+| **Trends** | What's heating up this month? Competitor × pain combinations that are *rising* or *new* |
+| **Playbooks** | How should I pitch against competitor X? Per competitor: the pains to lead with (ranked by evidence), a suggested opener, the WareSport angle, discovery questions, and a proof quote with its link |
+| **Hot Conversations** | Where are owners most actively unhappy? Threads and review pages ranked by Hot complaints, switching intent and owner involvement |
+| **Alerts** | What's new and urgent? New Hot complaints, people considering a switch, and rising trends. Also sent to Slack, Teams or a CRM if a webhook is set up (section 9) |
+
+Every header has a hover note. Verified club accounts appear only when a club's name is proven by
+the source text (see section 6); until then, **Hot Conversations** is the place to find specific
+threads to act on.
 
 > **Please close the workbook in Excel before a run.** Excel locks open files. If it's open, the
 > run saves a dated copy (`complaint-miner-<date>.xlsx`) instead.
@@ -113,7 +144,10 @@ flowchart LR
     F --> L["3. Analyst agent (OpenAI)<br/>extracts complaints as structured JSON"]
     L --> V["4. Validation<br/>quote must match the source word for word<br/>vendor marketing dropped · old reviews dropped<br/>4–5★ cons capped at low severity"]
     V --> S["5. Scoring<br/>Lead Score + Hot / Warm / Cold"]
-    S --> X["6. Export<br/>complaint-miner.xlsx"]
+    S --> I["6. Market intelligence<br/>competitor map · trends · sport/region · clusters<br/>hot accounts & conversations · playbooks"]
+    I --> AL["7. Alerts<br/>new Hot / switching / rising trend<br/>→ Slack · Teams · CRM webhook"]
+    I --> X["8. Export<br/>complaint-miner.xlsx + insights.json"]
+    X --> API["Insights API<br/>(npm run api) → WareSport website"]
     V --> D[("Saved results<br/>complaints.json + state.json")]
     D --> S
 ```
@@ -140,8 +174,24 @@ flowchart LR
    older than the cutoff are dropped. Cons inside 4–5★ reviews are capped at severity 2.
 5. **Score.** Each complaint gets a Lead Score and a Hot/Warm/Cold tier (section 7). Scores are
    recalculated on every run because recency changes over time.
-6. **Export.** All complaints found so far, across every run, go into one workbook, best first.
-   Duplicates are merged, so the same quote is never listed twice.
+6. **Market intelligence.** From every complaint collected so far, the system builds:
+   - **Competitor map:** volume, Hot, switching, top pains and trend per competitor.
+   - **Trends:** the last 30 days compared with the 60 days before.
+   - **Sport and region:** taken from what the source states or clearly shows (the subreddit,
+     sport words, the App Store country), each labelled with how it was found.
+   - **Issue clusters:** named themes across competitors, plus emerging themes it spots on its own.
+   - **Hot accounts and conversations:** clubs only when verified, and the threads with the most
+     intent.
+   - **Playbooks:** per competitor.
+
+   This step has no AI cost and is deterministic, so results are stable from run to run.
+7. **Alerts.** New Hot complaints, people considering a switch, and rising trends are raised
+   **once each**, saved to `alerts.json`, and sent to a Slack, Teams or CRM webhook if one is
+   configured.
+8. **Export.** All complaints found so far, across every run, go into one workbook, best first,
+   together with the six intelligence sheets and `insights.json`. Duplicates are merged, so the
+   same quote is never listed twice. The **insights API** (`npm run api`) serves the same data to
+   the WareSport website.
 
 **Repeat runs only pay for new content.** The tool remembers what it has processed (Reddit posts
 for 30 days, web pages for 14 days, App Store reviews permanently). Twice-weekly runs mostly pick
@@ -189,9 +239,16 @@ Run `npm run mine -- --list` to print each competitor's key, which you can use w
 | Spreadsheet formula injection from scraped text | All cells are written as plain text, never as formulas |
 | Hammering websites or getting accounts blocked | Reddit searches are spaced 11 seconds apart and reads 4 seconds apart, one at a time. The Reddit channel stops for the run on login, rate-limit or block errors. Firecrawl backs off and retries on rate limits |
 
-**Club names are on hold.** The AI also extracts a club or organization name, but testing showed
-it can come from a review headline or can't be traced back to the source. It is stored but **not
-shown or scored** until it can be verified the same way quotes are (see the roadmap).
+**Club names must be proven.** Testing showed AI-extracted club names can come from a review
+headline (e.g. a review titled "The HOP") or can't be traced to the source. So the AI must now
+also return the exact sentence that ties the author to the club, and code checks three things:
+- the sentence appears **word for word** in the source;
+- it **contains the club's name**;
+- it says **more than the name alone**, so a bare headline doesn't count.
+
+Only clubs that pass become **hot accounts** or appear in the API. Unverified names are stored but
+never shown or scored. This applies to data collected from now on; earlier complaints have no
+verified clubs.
 
 ---
 
@@ -385,7 +442,8 @@ npm run mine -- --dry-run --competitors courtreserve      # collects real data, 
 | `npm run mine -- --sources web,appstore` | Only some sources (`reddit`, `web`, `appstore`) |
 | `npm run mine -- --reddit-searches 0` | Skip Reddit search but still read Reddit links found on the web. Use when Reddit search is down |
 | `npm run mine -- --dry-run` | Collect only, no AI calls. Writes `runs/<date>/documents.xlsx` listing what *would* be analyzed |
-| `npm run export` | Rebuild the workbook from saved results, with no scraping and no cost |
+| `npm run export` (or `npm run insights`) | Rebuild the workbook, `insights.json` and alerts from saved results, with no scraping and no cost |
+| `npm run api` | Start the read-only insights API for the website or a dashboard (see [docs/INTEGRATION.md](docs/INTEGRATION.md)) |
 | `npm run schedule` | Run automatically twice a week (Mon + Thu 08:00). Keep the window open |
 | `npm run mine -- --list` | List competitor keys |
 | `npm test` | Run the automated tests |
@@ -400,6 +458,12 @@ Excel) and the paths of the files written. Full details are in `runs/<date>/repo
 **Failed items are retried automatically next run.** Pages or posts that fail (network blips,
 rate limits) aren't marked as processed, so the next run picks them up.
 
+**Alerts to Slack, Teams or a CRM:** set `COMPLAINT_MINER_WEBHOOK_URL` in `.env` to a Slack or
+Teams incoming-webhook URL, or to a Zapier, Make or HubSpot workflow URL. After each run, new
+alerts are posted there once. If delivery fails they retry on the next run. Without a webhook,
+alerts are kept in `alerts.json` and on the **Alerts** sheet. The payload format is in
+[docs/INTEGRATION.md](docs/INTEGRATION.md#7-alerts-to-slack-teams-or-crm).
+
 ---
 
 ## 10. Output files
@@ -408,7 +472,9 @@ Everything is under `output/complaint-miner/` (git-ignored):
 
 | File | Purpose | Keep it? |
 |---|---|---|
-| `complaint-miner.xlsx` | **The sales workbook**: every complaint so far, best first | Yes |
+| `complaint-miner.xlsx` | **The sales workbook**: every complaint so far, best first, plus the six intelligence sheets | Yes |
+| `insights.json` | Competitor map, trends, clusters, accounts, conversations and playbooks as JSON (`schemaVersion` 1) for the website or API | Rebuilt every run |
+| `alerts.json` | Alerts already raised (so each fires once) and recent alert history | **Yes**: deleting it re-raises old alerts |
 | `runs/<date-time>/new-complaints.xlsx` | Only what that run added | Optional |
 | `runs/<date-time>/report.json` | Per-source stats, warnings and errors for that run | Optional |
 | `complaints.json` | All saved complaints. The workbook is rebuilt from this | **Yes**: deleting it loses history |
@@ -465,9 +531,13 @@ Other things you can edit:
 ## 12. Project structure (for developers)
 
 ```
+├── docs/
+│   ├── 10X-GOALS.md             10x / 100x goals, baseline, targets, phased plan
+│   └── INTEGRATION.md           how to integrate the insights API into the WareSport website
 ├── scripts/
 │   ├── run.js                   CLI entry point (flags → ComplaintMinerService.run)
-│   └── schedule.js              node-cron wrapper for twice-weekly runs
+│   ├── schedule.js              node-cron wrapper for twice-weekly runs
+│   └── api.js                   starts the read-only insights API
 ├── src/
 │   ├── constants.js             competitors, categories, talking points, search templates, defaults
 │   ├── clients/                 external services
@@ -480,11 +550,26 @@ Other things you can edit:
 │   │   ├── web-collector.js
 │   │   └── app-store-collector.js
 │   ├── services/
-│   │   ├── complaint-miner-service.js    orchestrator: collect → analyze → score → export
-│   │   ├── complaint-analyzer-service.js prompt + validation (verbatim quotes, dates, ratings)
-│   │   └── lead-builder-service.js       lead score / tier (per-club grouping parked)
-│   ├── stores/file-store.js     JSON state: processed items + all complaints
-│   ├── exporters/excel-exporter.js   workbook (columns, header notes, tier colours, links)
+│   │   ├── complaint-miner-service.js    orchestrator: collect → analyze → score → insights → alerts → export
+│   │   ├── complaint-analyzer-service.js prompt + validation (verbatim quotes, dates, ratings, verified clubs)
+│   │   └── lead-builder-service.js       lead score / tier, per-club grouping (verified clubs only)
+│   ├── insights/                market intelligence (pure functions, no network/LLM)
+│   │   ├── index.js               buildInsights(complaints, { filters }) → the full payload
+│   │   ├── enrich.js              sport + region with provenance, segment, post month
+│   │   ├── filters.js             competitor / segment / sport / region / source / tier / intent / pain / since
+│   │   ├── trends.js              30-day vs prior-60-day trends, movers, 12-month series
+│   │   ├── clusters.js            named issue themes + emerging themes
+│   │   ├── accounts.js            verified hot accounts + hot conversations
+│   │   ├── playbooks.js           per-competitor sales playbooks
+│   │   └── config.js              thresholds, theme dictionary, sport/region patterns, discovery questions
+│   ├── alerts/index.js          CRM-ready alerts, dedupe, webhook delivery with retry
+│   ├── api/server.js            read-only JSON API (node:http, token, CORS)
+│   ├── stores/
+│   │   ├── file-store.js        JSON state: processed items + all complaints
+│   │   └── alert-store.js       alerts already raised + history
+│   ├── exporters/
+│   │   ├── excel-exporter.js    workbook (columns, header notes, tier colours, links) + insights.json
+│   │   └── insight-sheets.js    Competitor Map, Issue Clusters, Trends, Playbooks, Hot Conversations, Alerts
 │   └── helpers/                 text matching, dates, chunking, concurrency
 ├── tests/                       Jest unit tests (all network/AI calls mocked)
 ├── .env.example                 template for .env
@@ -506,9 +591,15 @@ database store (implementing `load / hasProcessed / markProcessed / addComplaint
 allComplaints / save`) or a Google Sheets exporter (implementing `write` / `writeDocuments`)
 can be plugged in without touching the collectors or the analyzer.
 
-**Tests:** `npm test` runs about 40 unit tests covering relevance matching, quote verification,
-date parsing and age cutoff, rating caps, Reddit retry and stop rules, URL classification,
-Excel output (sheets, notes, links, no formulas) and an end-to-end pipeline with mocked services.
+**Tests:** `npm test` runs 65 unit tests. They cover:
+- relevance matching, quote verification, club verification, date parsing and age cutoff, rating
+  caps, Reddit retry and stop rules, and URL classification;
+- sport and region inference, filters, trend rules, issue clusters, accounts and conversations,
+  and playbooks;
+- alerts (dedupe, webhook delivery, retry on failure) and the API (filters, token, read-only, no
+  unverified clubs);
+- Excel output (all sheets, notes, links, no formulas);
+- an end-to-end pipeline with mocked services.
 
 ---
 
@@ -570,10 +661,17 @@ and every error.
 
 ## 16. Roadmap
 
+The full plan, with measurable 10x targets and the 100x stretch, is in
+[docs/10X-GOALS.md](docs/10X-GOALS.md). Phase 1 is built: competitor map, trends, sport and region
+filters, issue clusters, verified accounts, hot conversations, playbooks, CRM-ready alerts and
+the insights API. Next up:
+
 | Item | Why |
 |---|---|
-| **Verified club names + Leads sheet** | Re-enable the club/organization column and a per-club Leads sheet (`buildLeads()` is already written) once names are verified against the source text and surrounding context is saved |
-| **Dates for Reddit posts found via web search** | Read the post date during the Reddit read, so these aren't "undated" |
+| **Always-on daily runs + webhook to the sales channel** | Alerts within 24 hours instead of days |
+| **WareSport admin dashboard** (dev team, via the API) | Insights inside the product, no spreadsheet |
+| **Feedback on alerts and playbooks** | Measure usefulness; tune scoring |
+| **Dates for Reddit posts found via web search** | Read the post date during the Reddit read, so these aren't "undated" (and count in trends) |
 | **Google Sheets export** | Share live results without passing Excel files around |
 | **Hosting** | Run `npm run schedule` on a small always-on machine or VM with Agent Reach logged in. Agent Reach needs a real browser profile, so it can't run in serverless functions; the alternative is Reddit's official Data API |
 | **Database store** | Replace `FileStore` for multi-user or hosted use |
