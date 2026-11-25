@@ -95,26 +95,28 @@ function parseRating(value) {
 const POSITIVE_REVIEW_RATING = 4;
 const POSITIVE_REVIEW_MAX_SEVERITY = 2;
 
-/** For batched documents (app reviews), find the segment the quote came from. */
 // Evidence must be a real sentence, not just the name (a bare review headline like "The HOP").
 const MIN_EVIDENCE_EXTRA_CHARS = 15;
 
 /**
  * An organization counts as verified only when the LLM's evidence sentence appears verbatim in
  * the source, contains the organization's name, and says more than the name alone.
+ * For batched documents, pass only the review the complaint came from: a club named by one
+ * reviewer says nothing about another.
  * @returns {{ organization: string|null, organizationVerified: boolean, organizationEvidence: string|null }}
  */
-function verifyOrganization(raw, chunk) {
+function verifyOrganization(raw, sourceText) {
     const organization = cleanText(raw.organization, 120);
     if (!organization) return { organization: null, organizationVerified: false, organizationEvidence: null };
     const evidence = String(raw.organizationEvidence || "").trim();
     const verified =
-        isVerbatimQuote(evidence, chunk) &&
+        isVerbatimQuote(evidence, sourceText) &&
         normalizeForMatch(evidence).includes(normalizeForMatch(organization)) &&
         normalizeForMatch(evidence).length >= normalizeForMatch(organization).length + MIN_EVIDENCE_EXTRA_CHARS;
     return { organization, organizationVerified: verified, organizationEvidence: verified ? evidence : null };
 }
 
+/** For batched documents (app reviews), find the segment the quote came from. */
 function locateSegment(quote, segments) {
     if (!Array.isArray(segments)) return null;
     return segments.find((s) => isVerbatimQuote(quote, s.text)) || null;
@@ -145,6 +147,8 @@ function validateComplaints(rawList, { doc, chunk, competitors, foundAt, maxAgeD
 
         const painCategory = pickEnum(raw.painCategory, Object.keys(PAIN_CATEGORIES), "other");
         const segment = locateSegment(quote, doc.segments);
+        // Batched reviews: no matching review means no text the club name can be verified against.
+        const evidenceText = Array.isArray(doc.segments) ? segment?.text || "" : chunk;
         // Collector-provided dates (App Store, Reddit post) beat dates the LLM read off the page.
         const publishedAt = segment?.publishedAt || parsePostedDate(raw.postedDate) || doc.publishedAt || null;
         if (isOlderThan(publishedAt, maxAgeDays)) {
@@ -168,7 +172,7 @@ function validateComplaints(rawList, { doc, chunk, competitors, foundAt, maxAgeD
             reviewRating,
             switchingIntent: pickEnum(raw.switchingIntent, SWITCHING_INTENT, "none"),
             authorType: pickEnum(raw.authorType, AUTHOR_TYPES, "unknown"),
-            ...verifyOrganization(raw, chunk),
+            ...verifyOrganization(raw, evidenceText),
             location: cleanText(raw.location, 120),
             sport: cleanText(raw.sport, 60),
             source: doc.source,

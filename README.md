@@ -109,7 +109,7 @@ The same workbook has five more sheets, rebuilt on every run:
 | **Issue Clusters** | What are people actually complaining about, across all competitors? E.g. "AI chatbot instead of human support", "Contracts, cancellation & auto-renewal", "In-app ads", each with counts, trend, top competitors and an example quote. *Emerging* clusters are new recurring phrases the system spotted by itself |
 | **Playbooks** | How should I pitch against competitor X? Per competitor: the pains to lead with (ranked by evidence), a suggested opener, the WareSport angle, discovery questions, and a proof quote with its link |
 | **Hot Conversations** | Where are owners most actively unhappy? Threads and review pages ranked by Hot complaints, switching intent and owner involvement |
-| **Alerts** | What's new and urgent? New Hot complaints, people considering a switch, and rising trends. Also sent to Slack, Teams or a CRM if a webhook is set up (section 9) |
+| **Alerts** | What's new and urgent? New Hot complaints, people considering a switch, and rising trends. Complaints whose source shows no date are marked *Date unknown* and rank lower. Also sent to Slack, Teams or a CRM if a webhook is set up (section 9) |
 
 Every header has a hover note. Verified club accounts appear only when a club's name is proven by
 the source text (see section 6); until then, **Hot Conversations** is the place to find specific
@@ -562,6 +562,7 @@ Other things you can edit:
 │   │   ├── playbooks.js           per-competitor sales playbooks
 │   │   └── config.js              thresholds, theme dictionary, sport/region patterns, discovery questions
 │   ├── alerts/index.js          CRM-ready alerts, dedupe, webhook delivery with retry
+│   ├── alerts/confidence.js     marks undated alerts and ranks them lower
 │   ├── api/server.js            read-only JSON API (node:http, token, CORS)
 │   ├── stores/
 │   │   ├── file-store.js        JSON state: processed items + all complaints
@@ -590,7 +591,7 @@ database store (implementing `load / hasProcessed / markProcessed / addComplaint
 allComplaints / save`) or a Google Sheets exporter (implementing `write` / `writeDocuments`)
 can be plugged in without touching the collectors or the analyzer.
 
-**Tests:** `npm test` runs 65 unit tests. They cover:
+**Tests:** `npm test` runs 69 unit tests. They cover:
 - relevance matching, quote verification, club verification, date parsing and age cutoff, rating
   caps, Reddit retry and stop rules, and URL classification;
 - sport and region inference, filters, trend rules, issue clusters, accounts and conversations,

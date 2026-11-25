@@ -69,14 +69,22 @@ const CONVERSATION_COLUMNS = Object.freeze([
 ]);
 
 const ALERT_COLUMNS = Object.freeze([
-    { key: "createdOn", header: "Raised On", width: 11, note: "When the alert was raised." },
-    { key: "priority", header: "Priority", width: 9, note: "high = Hot complaint; medium = switching intent or rising trend." },
+    { key: "createdOn", header: "Raised On", width: 11, note: "When the alert was raised (not when the complaint was posted)." },
+    { key: "postedOn", header: "Posted On", width: 13, note: "When the complaint was posted. Date unknown = the source shows no date, so it is newly found but may be older. Blank for trends." },
+    { key: "priority", header: "Priority", width: 9, note: "high = Hot complaint with a known recent date; medium = switching intent with a known date, Hot with no date, or rising trend; low = switching intent with no date." },
     { key: "type", header: "Type", width: 16, note: "hot_complaint / switching_intent / rising_trend." },
     { key: "title", header: "Alert", width: 40, wrap: true, note: "What happened." },
     { key: "message", header: "Details", width: 60, wrap: true, note: "Summary or trend numbers." },
     { key: "suggestedAction", header: "Suggested Action", width: 50, wrap: true, note: "What sales could do about it." },
     { key: "sourceUrl", header: "Source", width: 40, link: true, note: "Link to the complaint (blank for trends)." },
 ]);
+
+const PRIORITY_RANK = Object.freeze({ high: 0, medium: 1, low: 2 });
+
+/** Newest first; within a day, highest priority first. */
+function byDayThenPriority(a, b) {
+    return day(b.createdAt).localeCompare(day(a.createdAt)) || PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+}
 
 function trendLabel(t) {
     return t ? t.status : "";
@@ -130,7 +138,11 @@ function addInsightSheets(workbook, addSheet, insights, alerts = []) {
         latestPost: day(c.latestPost),
     })));
 
-    addSheet(workbook, "Alerts", ALERT_COLUMNS, alerts.map((a) => ({ ...a, createdOn: day(a.createdAt) })));
+    addSheet(workbook, "Alerts", ALERT_COLUMNS, [...alerts].sort(byDayThenPriority).map((a) => ({
+        ...a,
+        createdOn: day(a.createdAt),
+        postedOn: a.type === "rising_trend" ? "" : day(a.postedAt) || "Date unknown",
+    })));
 }
 
 module.exports = {

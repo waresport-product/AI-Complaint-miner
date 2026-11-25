@@ -74,7 +74,7 @@ function buildPlaybook(competitorKey, list, asOfMs, cfg) {
         trend: windowCounts(list, asOfMs),
         topPains,
         opener: lead
-            ? `Clubs using ${competitor ? competitor.name : list[0].competitorName} often tell us about ` +
+            ? `Public reviews and posts about ${competitor ? competitor.name : list[0].competitorName} often mention ` +
               `${lowerFirst(lead.painCategoryLabel)}${second ? ` and ${lowerFirst(second.painCategoryLabel)}` : ""}` +
               ` — is that something your team runs into?`
             : null,

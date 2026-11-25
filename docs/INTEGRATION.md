@@ -115,7 +115,7 @@ Errors are JSON: `401` (token), `404` (unknown route or competitor), `405` (non-
   "playbooks": [{
     "competitorKey", "competitorName", "segment", "complaintCount", "hot",
     "consideringPct", "decisionMakerPct", "trend",
-    "opener": "Clubs using Mindbody often tell us about …",
+    "opener": "Public reviews and posts about Mindbody often mention …",
     "topPains": [{ "painCategory", "painCategoryLabel", "count", "sharePct", "hot", "trend",
                    "proof": [{ "quote", "authorType", "sourceLabel", "url", "publishedAt" }],
                    "waresportAngle", "discoveryQuestions": ["…"] }]
@@ -201,11 +201,12 @@ Set `COMPLAINT_MINER_WEBHOOK_URL`. After each run, new alerts are POSTed once:
   "alerts": [{
     "alertId": "3f2a9c1d0b7e4a55", "dedupeKey": "complaint:…",
     "type": "hot_complaint" | "switching_intent" | "rising_trend",
-    "priority": "high" | "medium",
+    "priority": "high" | "medium" | "low",
     "createdAt": "…", "competitorKey": "mindbody", "competitorName": "Mindbody",
     "painCategory": "contract_lockin", "painCategoryLabel": "Contract & lock-in",
     "title": "Hot · Mindbody · Contract & lock-in", "message": "…", "quote": "…",
-    "sourceLabel": "Reddit r/gymowner", "sourceUrl": "https://…", "postedAt": "…",
+    "sourceLabel": "Reddit r/gymowner", "sourceUrl": "https://…", "postedAt": "…" | null,
+    "dateKnown": true | false, // complaint alerts only
     "suggestedAction": "Prioritise Mindbody prospects this week: …",
     "playbook": { "competitorKey": "mindbody", "painCategory": "contract_lockin" },
     "crm": { "subject": "[Competitor intel] Mindbody: Contract & lock-in", "body": "…", "tags": ["competitor-intel", "mindbody", "contract_lockin", "hot"] }
@@ -213,7 +214,10 @@ Set `COMPLAINT_MINER_WEBHOOK_URL`. After each run, new alerts are POSTed once:
 }
 ```
 
-- **Slack / Teams:** an incoming-webhook URL works as is; they display `text`.
+- **Undated complaints:** many sources show no post date. Those alerts have `dateKnown: false`,
+  rank one priority lower, and say to check the source first. Treat them as newly *found*.
+- **Slack / Teams:** the payload has a `text` summary in their format, but delivery has only been
+  tested with simulated calls. Test with your real webhook first; Teams may need its own format.
 - **HubSpot / Salesforce:** point the webhook at a Zapier or Make scenario (or a small handler)
   that turns each `alerts[]` item into a note or task, using `crm.subject`, `crm.body` and `crm.tags`.
 - If delivery fails, alerts are **not** marked as sent and retry on the next run. Each alert is

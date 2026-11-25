@@ -131,6 +131,13 @@ const REGION_PATTERNS = Object.freeze({
     UAE: [/\b(uae|dubai|abu dhabi)\b/i],
 });
 
+/** App Store storefront code → the same region names REGION_PATTERNS uses (filters match on the name). */
+const STOREFRONT_REGIONS = Object.freeze({
+    US: "US", CA: "Canada", GB: "UK", IE: "Ireland", AU: "Australia", NZ: "New Zealand",
+    ES: "Spain", IT: "Italy", PT: "Portugal", NL: "Netherlands", SE: "Sweden", SG: "Singapore",
+    PH: "Philippines", AE: "UAE",
+});
+
 /** Questions a rep can ask a prospect to surface each pain in a discovery call. */
 const DISCOVERY_QUESTIONS = Object.freeze({
     booking_scheduling: [
@@ -203,5 +210,6 @@ module.exports = {
     US_STATES,
     US_STATE_CODES,
     REGION_PATTERNS,
+    STOREFRONT_REGIONS,
     DISCOVERY_QUESTIONS,
 };

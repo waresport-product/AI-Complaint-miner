@@ -137,7 +137,13 @@ function createApiServer({ outputDir, token, corsOrigin, dataSource } = {}) {
         if (req.method === "OPTIONS" && corsOrigin) return send(res, 204);
         if (req.method !== "GET") return send(res, 405, { error: "Method not allowed. This API is read-only." });
 
-        const url = new URL(req.url, "http://localhost");
+        let url;
+        try {
+            url = new URL(req.url, "http://localhost");
+        } catch (_) {
+            // e.g. "//[": must never escape the handler, or one request would stop the server.
+            return send(res, 400, { error: "Invalid request URL." });
+        }
         if (url.pathname !== "/health" && token && !tokenMatches(token, req.headers.authorization)) {
             return send(res, 401, { error: "Missing or invalid bearer token." });
         }

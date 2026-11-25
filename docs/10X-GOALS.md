@@ -90,7 +90,7 @@ built on the `feature/10x-market-intelligence` branch (see section 4).
 | **Hot accounts and conversations**: verified clubs only, plus ranked threads where owners are most actively unhappy | G5 | ✅ Built |
 | **Verified club names**: the AI must cite the exact sentence tying the author to the club; code verifies it word for word and rejects bare headlines | G5, G10 | ✅ Built (applies to newly collected data) |
 | **Sales playbooks** per competitor: ranked pains, proof quotes, WareSport angle, discovery questions, suggested opener | G8 | ✅ Built (19 generated) |
-| **CRM-ready alerts**: Hot, switching intent and rising trend, each raised once; Slack/Teams/Zapier-compatible webhook; retries if delivery fails | G9 | ✅ Built (first export raised 42: 35 Hot, 4 switching, 3 rising trends) |
+| **CRM-ready alerts**: Hot, switching intent and rising trend, each raised once; Slack/Teams/Zapier-compatible webhook; retries if delivery fails | G9 | ✅ Built (first export raised 42: 35 Hot, 4 switching, 3 rising trends; 36 of the 39 complaint alerts have no post date, so they are marked "Date unknown" and ranked lower) |
 | **Insights API** for the website: read-only, filterable, token-protected | G1 | ✅ Built |
 | **No spreadsheet work**: five auto-built sheets (Competitor Map, Issue Clusters, Playbooks, Hot Conversations, Alerts) plus `insights.json` | G1 | ✅ Built |
 

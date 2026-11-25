@@ -14,18 +14,18 @@
 const axios = require("axios");
 const { ALERTS } = require("../insights/config");
 const { shortHash } = require("../helpers/text.helper");
+const { withDateConfidence } = require("./confidence");
 
 const DAY_MS = 86400000;
 
 function complaintAlert(c, createdAt) {
     const isHot = c.leadTier === "Hot";
-    const considering = c.switchingIntent === "considering";
     const key = `complaint:${c.id}`;
-    return {
+    const posted = c.publishedAt ? String(c.publishedAt).slice(0, 10) : "date unknown";
+    return withDateConfidence({
         alertId: shortHash(key),
         dedupeKey: key,
         type: isHot ? "hot_complaint" : "switching_intent",
-        priority: isHot ? "high" : "medium",
         createdAt,
         competitorKey: c.competitorKey,
         competitorName: c.competitorName,
@@ -41,16 +41,13 @@ function complaintAlert(c, createdAt) {
         leadTier: c.leadTier,
         leadScore: c.leadScore,
         switchingIntent: c.switchingIntent,
-        suggestedAction: considering
-            ? `Prioritise ${c.competitorName} prospects this week: lead with the "${c.painCategoryLabel}" playbook.`
-            : `Add this ${c.competitorName} pain to outreach messaging; see the "${c.painCategoryLabel}" playbook.`,
         playbook: { competitorKey: c.competitorKey, painCategory: c.painCategory },
         crm: {
             subject: `[Competitor intel] ${c.competitorName}: ${c.painCategoryLabel}`,
-            body: `"${c.quote}"\n\nSource: ${c.sourceLabel} — ${c.url}`,
+            body: `"${c.quote}"\n\nSource: ${c.sourceLabel} — ${c.url}\nPosted: ${posted}`,
             tags: ["competitor-intel", c.competitorKey, c.painCategory, (c.leadTier || "").toLowerCase()].filter(Boolean),
         },
-    };
+    });
 }
 
 function trendAlert(m, asOfMonth, createdAt) {
@@ -114,7 +111,7 @@ function buildAlerts({ complaints, movers = [], asOf, isSent = () => false, cfg 
 }
 
 function summaryText(alerts) {
-    const lines = alerts.slice(0, 10).map((a) => `• *${a.title}* — ${a.message}${a.sourceUrl ? ` (<${a.sourceUrl}|source>)` : ""}`);
+    const lines = alerts.slice(0, 10).map((a) => `• *${a.title}*${a.dateKnown === false ? " (post date unknown)" : ""} — ${a.message}${a.sourceUrl ? ` (<${a.sourceUrl}|source>)` : ""}`);
     const more = alerts.length > 10 ? `\n…and ${alerts.length - 10} more.` : "";
     return `AI Complaint Miner: ${alerts.length} new competitor alert(s)\n${lines.join("\n")}${more}`;
 }

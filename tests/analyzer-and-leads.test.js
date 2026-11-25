@@ -111,6 +111,26 @@ describe('complaint analyzer', () => {
         expect(result.complaints[0]).toMatchObject({ competitorKey: 'courtreserve', publishedAt: '2026-02-02T00:00:00Z' });
     });
 
+    test('a club named in one batched review is never verified for another review', async () => {
+        const clubReview = 'Great\nI run Sunset Pickleball Club in Austin and we love it.';
+        const badReview = 'Crashes\nThe app crashes every time I try to pay for a court.';
+        const segments = [clubReview, badReview].map((text) => ({ text, url: 'https://apps.apple.com/app/1', publishedAt: '2026-02-02T00:00:00Z' }));
+        const analyze = (quote) => {
+            mockCompleteJson.mockResolvedValue({
+                tokens: 100,
+                json: {
+                    documentType: 'user_content',
+                    complaints: [{ competitor: '', quote, painCategory: 'reliability_bugs', organization: 'Sunset Pickleball Club', organizationEvidence: 'I run Sunset Pickleball Club in Austin and we love it.' }],
+                },
+            });
+            return analyzeDocument(doc({ source: 'appstore', text: segments.map((s) => s.text).join('\n\n'), segments, competitorHint: 'CourtReserve', publishedAt: null }), COMPETITORS);
+        };
+        expect((await analyze('The app crashes every time I try to pay for a court.')).complaints[0].organizationVerified).toBe(false);
+        expect((await analyze('I run Sunset Pickleball Club in Austin and we love it.')).complaints[0].organizationVerified).toBe(true);
+        // A quote that spans two reviews belongs to neither, so nothing can be verified for it.
+        expect((await analyze('and we love it. Crashes The app crashes every time')).complaints[0].organizationVerified).toBe(false);
+    });
+
     test('resolveCompetitor matches names, keys and aliases loosely', () => {
         expect(resolveCompetitor('court reserve', COMPETITORS).key).toBe('courtreserve');
         expect(resolveCompetitor('Play By Point', COMPETITORS).key).toBe('playbypoint');

@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const os = require('os');
+const http = require('http');
 const path = require('path');
 const ExcelJS = require('exceljs');
 const { buildAlerts, deliverAlerts, processAlerts } = require('../src/alerts');
@@ -52,6 +53,33 @@ describe('alerts', () => {
         expect(alerts[0]).toMatchObject({ priority: 'high', competitorName: 'Mindbody', sourceUrl: expect.stringContaining('reddit.com') });
         expect(alerts[0].crm.tags).toEqual(expect.arrayContaining(['competitor-intel', 'mindbody']));
         expect(alerts[2].dedupeKey).toBe('trend:mindbody:pricing_fees:2026-10');
+    });
+
+    test('undated complaints are marked "date unknown" and rank below dated ones', () => {
+        const complaints = prepare([
+            complaint({ publishedAt: null }),
+            complaint({ publishedAt: null, severity: 2, authorType: 'player' }), // considering but not Hot
+            complaint(),
+        ], new Date(AS_OF).getTime());
+        const alerts = buildAlerts({ complaints, asOf: AS_OF });
+        expect(alerts.map((a) => [a.type, a.priority, a.dateKnown])).toEqual([
+            ['hot_complaint', 'high', true],
+            ['hot_complaint', 'medium', false],
+            ['switching_intent', 'low', false],
+        ]);
+        expect(alerts[1].suggestedAction).toMatch(/^Post date unknown: check the source first./);
+        expect(alerts[1].crm.body).toContain('Posted: date unknown');
+        expect(alerts[0].suggestedAction).not.toMatch(/date unknown/i);
+    });
+
+    test('alerts saved before dates were tracked are corrected when loaded', () => {
+        const dir = tmpDir();
+        const old = { dedupeKey: 'complaint:1', type: 'hot_complaint', priority: 'high', postedAt: null, switchingIntent: 'considering', competitorName: 'Mindbody', painCategoryLabel: 'Contract & lock-in', suggestedAction: 'Prioritise Mindbody prospects this week' };
+        fs.writeFileSync(path.join(dir, 'alerts.json'), JSON.stringify({ sent: { 'complaint:1': AS_OF }, history: [old, { ...old, dedupeKey: 'complaint:2', postedAt: daysAgo(2) }] }));
+        const store = new AlertStore(dir).load();
+        expect(store.isSent('complaint:1')).toBe(true);
+        expect(store.recent()[0]).toMatchObject({ priority: 'medium', dateKnown: false, suggestedAction: expect.stringContaining('Post date unknown') });
+        expect(store.recent()[1]).toMatchObject({ priority: 'high', dateKnown: true });
     });
 
     test('never raises the same alert twice', () => {
@@ -142,6 +170,17 @@ describe('insights API', () => {
         });
     });
 
+    test('a malformed request URL gets a 400 and does not take the server down', async () => {
+        await withServer({ token: 'secret' }, async (base) => {
+            const { port } = new URL(base);
+            const status = await new Promise((resolve, reject) => {
+                http.get({ host: '127.0.0.1', port, path: '//[' }, (res) => { res.resume(); resolve(res.statusCode); }).on('error', reject);
+            });
+            expect(status).toBe(400);
+            expect((await fetch(`${base}/health`)).status).toBe(200);
+        });
+    });
+
     test('complaints are paged and never expose unverified organizations', async () => {
         await withServer({ corsOrigin: 'https://www.waresport.com' }, async (base) => {
             const res = await fetch(`${base}/api/complaints?limit=1`);
@@ -161,7 +200,7 @@ describe('workbook intelligence sheets', () => {
         const complaints = prepare([complaint(), complaint(), complaint(), complaint(), complaint()], new Date(AS_OF).getTime());
         const insights = buildInsights(complaints, { asOf: AS_OF });
         const files = await new ExcelExporter(dir).write({
-            stamp: 't', allComplaints: complaints, newComplaints: [], insights, alerts: [{ title: 'Hot · Mindbody', priority: 'high', createdAt: AS_OF }], report: {},
+            stamp: 't', allComplaints: complaints, newComplaints: [], insights, alerts: [{ title: 'Hot · Mindbody', type: 'hot_complaint', priority: 'medium', postedAt: null, createdAt: AS_OF }], report: {},
         });
 
         const wb = new ExcelJS.Workbook();
@@ -169,6 +208,9 @@ describe('workbook intelligence sheets', () => {
         expect(wb.worksheets.map((s) => s.name)).toEqual(['Complaints', 'Competitor Map', 'Issue Clusters', 'Playbooks', 'Hot Conversations', 'Alerts']);
         for (const sheet of wb.worksheets) sheet.getRow(1).eachCell((cell) => expect(cell.note).toBeTruthy());
         expect(wb.getWorksheet('Competitor Map').getCell('A2').value).toBe('Mindbody');
+        const alertSheet = wb.getWorksheet('Alerts');
+        const headers = alertSheet.getRow(1).values;
+        expect(alertSheet.getRow(2).getCell(headers.indexOf('Posted On')).value).toBe('Date unknown');
         expect(JSON.parse(fs.readFileSync(files.insights, 'utf8')).schemaVersion).toBe(1);
     });
 });

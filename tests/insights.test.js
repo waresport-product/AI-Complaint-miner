@@ -48,6 +48,9 @@ describe('enrichment: sport and region', () => {
         expect(deriveRegion({ location: 'Austin, TX' })).toEqual({ region: 'US', regionSource: 'stated' });
         expect(deriveRegion({ location: 'Madrid' })).toEqual({ region: 'Spain', regionSource: 'stated' });
         expect(deriveRegion({ sourceLabel: 'App Store (US)' })).toEqual({ region: 'US', regionSource: 'app_store_country' });
+        expect(deriveRegion({ sourceLabel: 'App Store (CA)' })).toEqual({ region: 'Canada', regionSource: 'app_store_country' });
+        expect(deriveRegion({ sourceLabel: 'App Store (GB)' })).toEqual({ region: 'UK', regionSource: 'app_store_country' });
+        expect(applyFilters([enrichComplaint(complaint({ sourceLabel: 'App Store (CA)' })), enrichComplaint(complaint({ location: 'Toronto' }))], { region: 'Canada' })).toHaveLength(2);
         expect(deriveRegion({ sourceLabel: 'Trustpilot' })).toEqual({ region: null, regionSource: null });
     });
 
@@ -174,6 +177,7 @@ describe('playbooks', () => {
         expect(playbook.topPains[0].waresportAngle).toBeTruthy();
         expect(playbook.topPains[0].discoveryQuestions.length).toBeGreaterThan(0);
         expect(playbook.opener).toContain('pricing & fees');
+        expect(playbook.opener).toMatch(/^Public reviews and posts about /);
         expect(playbook.consideringPct).toBe(40);
     });
 

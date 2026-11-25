@@ -7,6 +7,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { withDateConfidence } = require("../alerts/confidence");
 
 const HISTORY_LIMIT = 500;
 
@@ -21,7 +22,8 @@ class AlertStore {
         try {
             const data = JSON.parse(fs.readFileSync(this.file, "utf8"));
             this.sent = data.sent || {};
-            this.history = Array.isArray(data.history) ? data.history : [];
+            // Also corrects alerts saved before post dates were taken into account.
+            this.history = (Array.isArray(data.history) ? data.history : []).map(withDateConfidence);
         } catch (_) {
             // First run or unreadable file: start empty.
         }

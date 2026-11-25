@@ -8,7 +8,7 @@
  */
 
 const { COMPETITORS } = require("../constants");
-const { SPORT_PATTERNS, NON_SPORTS, US_STATES, US_STATE_CODES, REGION_PATTERNS } = require("./config");
+const { SPORT_PATTERNS, NON_SPORTS, US_STATES, US_STATE_CODES, REGION_PATTERNS, STOREFRONT_REGIONS } = require("./config");
 
 const COMPETITOR_BY_KEY = new Map(COMPETITORS.map((c) => [c.key, c]));
 const SPORTS = Object.keys(SPORT_PATTERNS);
@@ -42,7 +42,7 @@ function deriveRegion(c) {
     const stated = regionFromLocation(c.location);
     if (stated) return { region: stated, regionSource: "stated" };
     const storefront = String(c.sourceLabel || "").match(/^App Store \(([A-Z]{2})\)$/);
-    if (storefront) return { region: storefront[1], regionSource: "app_store_country" };
+    if (storefront) return { region: STOREFRONT_REGIONS[storefront[1]] || storefront[1], regionSource: "app_store_country" };
     return { region: null, regionSource: null };
 }
 
