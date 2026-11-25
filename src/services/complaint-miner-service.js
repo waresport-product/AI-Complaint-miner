@@ -3,20 +3,22 @@
 /**
  * Orchestrator for the Competitor Complaint Miner.
  *
- *   collectors (parallel)          analyst (LLM, bounded concurrency)    scoring → exporter
- *   reddit | web | appstore  ──▶   verified complaints per document  ──▶ scored complaints
- *          └─ web hands Reddit links to the reddit collector
+ *   collectors (parallel)          analyst (LLM, bounded concurrency)    scoring → insights → alerts → export
+ *   reddit | web | appstore  ──▶   verified complaints per document  ──▶ competitor map, trends, clusters,
+ *          └─ web hands Reddit links to the reddit collector           accounts, playbooks (insights.json + Excel)
  *
- * Store/exporter are injected so the same pipeline can later run with a database + Google Sheets.
+ * Store/exporter/alertStore are injected so the same pipeline can run with a database + Google Sheets.
  */
 
 const path = require("path");
 const { COMPETITORS, DEFAULTS, SOURCES, getMaxReviewAgeDays } = require("../constants");
 const { RedditCollector, WebCollector, AppStoreCollector } = require("../collectors");
 const { analyzeDocument } = require("./complaint-analyzer-service");
-const { scoreComplaint } = require("./lead-builder-service");
+const { buildInsights, prepare } = require("../insights");
+const { processAlerts } = require("../alerts");
 const LlmClient = require("../clients/llm-client");
 const { FileStore } = require("../stores/file-store");
+const { AlertStore } = require("../stores/alert-store");
 const { ExcelExporter } = require("../exporters/excel-exporter");
 const { mapWithConcurrency } = require("../helpers/async.helper");
 
@@ -48,6 +50,8 @@ function timestamp(date = new Date()) {
  * @param {object}   [options.limits]        overrides for DEFAULTS
  * @param {object}   [options.store]         defaults to FileStore(outputDir)
  * @param {object}   [options.exporter]      defaults to ExcelExporter(outputDir)
+ * @param {object}   [options.alertStore]    defaults to AlertStore(outputDir)
+ * @param {string}   [options.webhookUrl]    defaults to COMPLAINT_MINER_WEBHOOK_URL
  * @param {Function} [options.log]
  */
 async function run(options = {}) {
@@ -59,10 +63,14 @@ async function run(options = {}) {
     const limits = options.limits || {};
     const store = options.store || new FileStore(outputDir).load();
     const exporter = options.exporter || new ExcelExporter(outputDir);
+    const alertStore = options.alertStore || new AlertStore(outputDir).load();
 
     if (options.exportOnly) {
         const report = { startedAt: startedAt.toISOString(), exportOnly: true, warnings: [], errors: [] };
-        return exportResults({ store, exporter, stamp: timestamp(startedAt), newComplaints: [], report });
+        return exportResults({
+            store, exporter, stamp: timestamp(startedAt), newComplaints: [], report,
+            alertStore, log, webhookUrl: options.webhookUrl, http: options.http,
+        });
     }
 
     if (!options.dryRun && !LlmClient.isConfigured()) {
@@ -152,28 +160,43 @@ async function run(options = {}) {
         `${analysis.quotesRejected} unverifiable quote(s) and ${analysis.tooOldDropped} too-old complaint(s) dropped`
     );
 
-    // ── 3. Lead builder + export ──────────────────────────────────────────
+    // ── 3. Insights, alerts + export ──────────────────────────────────────
     const newComplaints = store.addComplaints(found);
     store.save();
-    return exportResults({ store, exporter, stamp, newComplaints, report });
+    return exportResults({ store, exporter, stamp, newComplaints, report, alertStore, log, webhookUrl: options.webhookUrl, http: options.http });
 }
 
-/** Re-score everything in the store (recency changes over time) and write the workbook. */
-async function exportResults({ store, exporter, stamp, newComplaints, report }) {
+/**
+ * Re-score everything in the store (recency changes over time), build market insights,
+ * raise new alerts, then write insights.json and the workbook.
+ */
+async function exportResults({ store, exporter, stamp, newComplaints, report, alertStore, log = defaultLog, webhookUrl, http }) {
     const now = Date.now();
-    const allScored = store.allComplaints().map((c) => scoreComplaint(c, now));
+    const allScored = prepare(store.allComplaints(), now);
     const newIds = new Set(newComplaints.map((c) => c.id));
+
+    const insights = buildInsights(allScored);
+    const alerts = alertStore
+        ? await processAlerts({ alertStore, insights, complaints: allScored, log, webhookUrl, http })
+        : { alerts: [], delivery: { delivered: false } };
 
     report.totals = {
         newComplaints: newComplaints.length,
         allComplaints: allScored.length,
         hotComplaints: allScored.filter((c) => c.leadTier === "Hot").length,
+        issueClusters: insights.clusters.length,
+        risingTrends: insights.trends.movers.length,
+        verifiedAccounts: insights.hotAccounts.length,
+        newAlerts: alerts.alerts.length,
     };
+    if (alerts.delivery.error) report.warnings.push(`Alert webhook failed (${alerts.delivery.error}); alerts will retry next run.`);
     report.finishedAt = new Date().toISOString();
     report.files = await exporter.write({
         stamp,
         allComplaints: allScored,
         newComplaints: allScored.filter((c) => newIds.has(c.id)),
+        insights,
+        alerts: alertStore ? alertStore.recent(200) : [],
         report,
     });
     return report;

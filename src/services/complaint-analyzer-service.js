@@ -42,7 +42,8 @@ function buildSystemPrompt(competitors) {
         "2. Ignore marketing/comparison content written by software vendors (e.g. \"X alternatives\" articles, vendor blogs, press releases). Set documentType to \"vendor_marketing\" for such pages and return no complaints.",
         "3. \"quote\" MUST be copied EXACTLY, character for character, from the text: 1-3 consecutive sentences that state the pain most specifically. Never paraphrase, merge separate sentences, fix typos or add words.",
         "4. One entry per distinct pain point. Do not return the same quote twice.",
-        "5. \"organization\": the club/facility/league/organization the author belongs to or describes as using the product — ONLY if the text names it explicitly. Otherwise null. Never guess.",
+        "5. \"organization\": the club/facility/league/organization the author belongs to or describes as using the product — ONLY if the text names it explicitly. Otherwise null. Never guess. A review headline or title on its own is NOT evidence.",
+        "5b. \"organizationEvidence\": the exact sentence, copied character for character from the text, that ties the author to that organization (e.g. \"I run Sunset Pickleball Club in Austin.\"). null when organization is null.",
         "6. \"location\": city/state/country only if stated. \"sport\": e.g. pickleball, tennis, padel, soccer — only if stated or obvious.",
         `7. "painCategory" is one of: ${Object.keys(PAIN_CATEGORIES).join(", ")}.`,
         `8. "authorType" is one of: ${AUTHOR_TYPES.join(", ")}.`,
@@ -53,7 +54,7 @@ function buildSystemPrompt(competitors) {
         "13. \"reviewRating\": the star rating (1-5) the author gave in THIS review, if the page shows one. null for forum posts or when not shown. Remember a 5-star review can still list cons.",
         "",
         "Respond with JSON only:",
-        "{\"documentType\": \"user_content\" | \"mixed\" | \"vendor_marketing\" | \"news\" | \"other\", \"complaints\": [{\"competitor\": string, \"quote\": string, \"painSummary\": string, \"painCategory\": string, \"severity\": number, \"switchingIntent\": string, \"authorType\": string, \"organization\": string|null, \"location\": string|null, \"sport\": string|null, \"postedDate\": string|null, \"reviewRating\": number|null}]}",
+        "{\"documentType\": \"user_content\" | \"mixed\" | \"vendor_marketing\" | \"news\" | \"other\", \"complaints\": [{\"competitor\": string, \"quote\": string, \"painSummary\": string, \"painCategory\": string, \"severity\": number, \"switchingIntent\": string, \"authorType\": string, \"organization\": string|null, \"organizationEvidence\": string|null, \"location\": string|null, \"sport\": string|null, \"postedDate\": string|null, \"reviewRating\": number|null}]}",
     ].join("\n");
 }
 
@@ -94,6 +95,27 @@ function parseRating(value) {
 const POSITIVE_REVIEW_RATING = 4;
 const POSITIVE_REVIEW_MAX_SEVERITY = 2;
 
+// Evidence must be a real sentence, not just the name (a bare review headline like "The HOP").
+const MIN_EVIDENCE_EXTRA_CHARS = 15;
+
+/**
+ * An organization counts as verified only when the LLM's evidence sentence appears verbatim in
+ * the source, contains the organization's name, and says more than the name alone.
+ * For batched documents, pass only the review the complaint came from: a club named by one
+ * reviewer says nothing about another.
+ * @returns {{ organization: string|null, organizationVerified: boolean, organizationEvidence: string|null }}
+ */
+function verifyOrganization(raw, sourceText) {
+    const organization = cleanText(raw.organization, 120);
+    if (!organization) return { organization: null, organizationVerified: false, organizationEvidence: null };
+    const evidence = String(raw.organizationEvidence || "").trim();
+    const verified =
+        isVerbatimQuote(evidence, sourceText) &&
+        normalizeForMatch(evidence).includes(normalizeForMatch(organization)) &&
+        normalizeForMatch(evidence).length >= normalizeForMatch(organization).length + MIN_EVIDENCE_EXTRA_CHARS;
+    return { organization, organizationVerified: verified, organizationEvidence: verified ? evidence : null };
+}
+
 /** For batched documents (app reviews), find the segment the quote came from. */
 function locateSegment(quote, segments) {
     if (!Array.isArray(segments)) return null;
@@ -125,6 +147,8 @@ function validateComplaints(rawList, { doc, chunk, competitors, foundAt, maxAgeD
 
         const painCategory = pickEnum(raw.painCategory, Object.keys(PAIN_CATEGORIES), "other");
         const segment = locateSegment(quote, doc.segments);
+        // Batched reviews: no matching review means no text the club name can be verified against.
+        const evidenceText = Array.isArray(doc.segments) ? segment?.text || "" : chunk;
         // Collector-provided dates (App Store, Reddit post) beat dates the LLM read off the page.
         const publishedAt = segment?.publishedAt || parsePostedDate(raw.postedDate) || doc.publishedAt || null;
         if (isOlderThan(publishedAt, maxAgeDays)) {
@@ -148,7 +172,7 @@ function validateComplaints(rawList, { doc, chunk, competitors, foundAt, maxAgeD
             reviewRating,
             switchingIntent: pickEnum(raw.switchingIntent, SWITCHING_INTENT, "none"),
             authorType: pickEnum(raw.authorType, AUTHOR_TYPES, "unknown"),
-            organization: cleanText(raw.organization, 120),
+            ...verifyOrganization(raw, evidenceText),
             location: cleanText(raw.location, 120),
             sport: cleanText(raw.sport, 60),
             source: doc.source,
@@ -207,4 +231,5 @@ module.exports = {
     validateComplaints,
     resolveCompetitor,
     buildSystemPrompt,
+    verifyOrganization,
 };

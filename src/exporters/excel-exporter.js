@@ -3,19 +3,21 @@
 /**
  * Writes the sales-facing Excel workbooks. Swap for a Google Sheets exporter later — same write() input.
  *
- *   <dir>/complaint-miner.xlsx                 sheet "Complaints" (cumulative, best first)
- *
- * Club/organization is still extracted and stored, but not exported until it is verified against
- * the source text (see README "Club names").
+ *   <dir>/complaint-miner.xlsx                 "Complaints" (cumulative, best first) + market-intelligence
+ *                                              sheets (Competitor Map, Issue Clusters, Playbooks,
+ *                                              Hot Conversations, Alerts)
+ *   <dir>/insights.json                        the same intelligence as JSON, for the website/API
  *   <dir>/runs/<stamp>/new-complaints.xlsx     what this run added
  *   <dir>/runs/<stamp>/report.json             per-source stats, warnings, errors
  *
+ * Organizations are only shown where verified against the source (see README "Club names").
  * Cells are written as plain strings (never formulas), so scraped text can't execute in Excel.
  */
 
 const fs = require("fs");
 const path = require("path");
 const ExcelJS = require("exceljs");
+const { addInsightSheets } = require("./insight-sheets");
 
 const TIER_FILLS = Object.freeze({ Hot: "FFF8CBAD", Warm: "FFFFE699", Cold: "FFEDEDED" });
 const HEADER_FILL = "FF1F3864";
@@ -46,11 +48,12 @@ const COMPLAINT_COLUMNS = Object.freeze([
     { key: "switchingIntent", header: "Switching Intent", width: 15, note: SWITCHING_NOTE },
     { key: "authorType", header: "Author Type", width: 16, note: `Who wrote the complaint. ${AUTHOR_TYPES_NOTE}` },
     { key: "location", header: "Location", width: 16, note: "City/state/country, only if stated in the source." },
-    { key: "sport", header: "Sport", width: 12, note: "Sport mentioned or obvious from the source (pickleball, tennis, padel, …)." },
+    { key: "sportTag", header: "Sport", width: 12, note: "Sport stated in the complaint, or recognised from its text or subreddit (pickleball, tennis, padel, soccer, fitness, …). Blank when unknown." },
     { key: "sourceLabel", header: "Source", width: 20, note: "Where it was found: Reddit (with subreddit), App Store, Capterra, Software Advice, G2, Trustpilot, Facebook, etc." },
     { key: "url", header: "Source URL", width: 40, link: true, note: "Click to open the original post/review and read the full context." },
     { key: "postedOn", header: "Posted On", width: 11, note: "Date the original post/review was published, when the source shows it." },
     { key: "waresportAngle", header: "WareSport Angle", width: 50, wrap: true, note: "Suggested WareSport talking point for this type of problem. Verify the wording before using it with a prospect." },
+    { key: "region", header: "Region", width: 11, note: "Country/region from a stated location, or the App Store storefront country for app reviews. Blank when unknown." },
     { key: "id", header: "Complaint ID", width: 18, note: "Internal ID used to avoid duplicates between runs. Not needed by sales." },
 ]);
 
@@ -123,6 +126,12 @@ function sortComplaints(list) {
     );
 }
 
+function writeJsonAtomic(file, data) {
+    const tmp = `${file}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2), "utf8");
+    fs.renameSync(tmp, file);
+}
+
 /**
  * Excel locks open workbooks on Windows. If the main file is open, save a timestamped copy
  * instead of failing the whole run.
@@ -151,14 +160,19 @@ class ExcelExporter {
         return dir;
     }
 
-    /** @returns {Promise<object>} paths written */
-    async write({ stamp, allComplaints, newComplaints, report }) {
+    /**
+     * @param {object}   args.insights  buildInsights() output (optional) → intelligence sheets + insights.json
+     * @param {object[]} args.alerts    recent alerts (optional) → Alerts sheet
+     * @returns {Promise<object>} paths written
+     */
+    async write({ stamp, allComplaints, newComplaints, insights, alerts, report }) {
         fs.mkdirSync(this.dir, { recursive: true });
         const runDir = this.runDir(stamp);
         const warnings = report.warnings || (report.warnings = []);
 
         const main = new ExcelJS.Workbook();
         addSheet(main, "Complaints", COMPLAINT_COLUMNS, sortComplaints(allComplaints).map(toComplaintRow));
+        addInsightSheets(main, addSheet, insights, alerts);
 
         const fresh = new ExcelJS.Workbook();
         addSheet(fresh, "New Complaints", COMPLAINT_COLUMNS, sortComplaints(newComplaints).map(toComplaintRow));
@@ -168,6 +182,11 @@ class ExcelExporter {
             newComplaints: await writeWorkbook(fresh, path.join(runDir, "new-complaints.xlsx"), stamp, warnings),
             report: path.join(runDir, "report.json"),
         };
+        if (insights) {
+            // Stable, versioned data product for the website/API (see docs/INTEGRATION.md).
+            files.insights = path.join(this.dir, "insights.json");
+            writeJsonAtomic(files.insights, insights);
+        }
         fs.writeFileSync(files.report, JSON.stringify({ ...report, files }, null, 2), "utf8");
         return files;
     }
