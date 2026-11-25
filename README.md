@@ -25,7 +25,11 @@ customers, and it never posts, comments or contacts anyone. It only reads public
 
 ---
 
+> **Sales team:** go straight to the [step-by-step setup guide](#start-here-sales-team-setup-guide).
+
 ## Contents
+
+- **[Start here: sales team setup guide](#start-here-sales-team-setup-guide)**
 
 1. [Who this is for](#1-who-this-is-for)
 2. [For the sales team: using the workbook](#2-for-the-sales-team-using-the-workbook), including [the intelligence sheets](#the-intelligence-sheets-no-filtering-needed)
@@ -46,11 +50,199 @@ customers, and it never posts, comments or contacts anyone. It only reads public
 
 ---
 
+## Start here: sales team setup guide
+
+No coding needed. You copy, paste and press Enter. Plan about 30 minutes, once.
+
+### Do you need this setup?
+
+| You want to… | What to do |
+|---|---|
+| **Only read the results** | **No setup.** Ask the person who runs the tool for the Excel file, then go to [section 2](#2-for-the-sales-team-using-the-workbook) |
+| **Collect complaints yourself** | Follow the steps below |
+
+> **Tip:** one person running the tool and sharing the Excel file is simplest. Every run uses paid
+> credits, and each computer keeps its own separate results.
+
+### What you need to change: the checklist
+
+| # | What | Where | Must you? |
+|---|---|---|---|
+| 1 | **Gemini API key** (the AI that reads the complaints) | `.env` file, after `GEMINI_API_KEY=` | **Yes** |
+| 2 | **Firecrawl API key** (reads review websites) | `.env` file, after `FIRECRAWL_API_KEY=` | **Yes** |
+| 3 | **Reddit login** (your own, not in any file) | Step 6 below | Optional, but Reddit has some of the best complaints |
+| 4 | **Slack or Teams alert link** | `.env` file, `COMPLAINT_MINER_WEBHOOK_URL` | Optional. Ask a developer to set it up and test it |
+
+**Leave everything else as it is.** Don't edit any other file or any other line in `.env`.
+
+### Step 1: Install two free programs
+
+| Program | Where | How |
+|---|---|---|
+| **Node.js** (runs the tool) | [nodejs.org](https://nodejs.org) | Download the **LTS** version, open it, keep clicking **Next** |
+| **VS Code** (where you open the tool) | [code.visualstudio.com](https://code.visualstudio.com) | Download, open it, keep clicking **Next** |
+
+Restart your computer when both are installed.
+
+### Step 2: Download the tool
+
+1. Open [the GitHub page](https://github.com/waresport-product/AI-Complaint-miner).
+2. Click the green **Code** button, then **Download ZIP**.
+3. Right-click the downloaded file and choose **Extract All**.
+4. In VS Code, click **File → Open Folder** and choose the extracted folder. Pick the one that
+   has `README.md` and `package.json` directly inside it.
+5. If VS Code asks whether you trust the authors, click **Yes**.
+
+### Step 3: Install the tool's parts
+
+1. In VS Code, click **Terminal → New Terminal**. A box opens at the bottom. On Windows it should
+   say **powershell** at its top right.
+2. Paste this and press **Enter**. Wait until it finishes (1–3 minutes):
+
+```powershell
+npm.cmd install
+```
+
+> **On a Mac**, type `npm` wherever this guide says `npm.cmd`.
+
+### Step 4: Add your keys
+
+A key is like a password that lets the tool use a service. Ask your manager whether to use company
+keys or create your own.
+
+| Key | Where to get it | Looks like |
+|---|---|---|
+| **Gemini** | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) → **Create API key** | A long mix of letters and numbers |
+| **Firecrawl** | [firecrawl.dev](https://www.firecrawl.dev) → sign up → **API Keys** | Starts with `fc-` |
+
+1. In the terminal, paste this and press **Enter**. It creates your settings file, called `.env`.
+   Do it **once only**: running it again replaces your keys.
+
+```powershell
+Copy-Item .env.example .env
+```
+
+   On a Mac, use `cp .env.example .env`.
+
+2. Click **`.env`** in the file list on the left (not `.env.example`).
+3. Replace only the example text after `=` on these two lines:
+
+```
+FIRECRAWL_API_KEY=paste-your-firecrawl-key-here
+GEMINI_API_KEY=paste-your-gemini-key-here
+```
+
+4. Press **Ctrl + S** (Mac: **Cmd + S**) to save.
+
+| ✅ Right | ❌ Wrong | Why |
+|---|---|---|
+| `GEMINI_API_KEY=abc123` | `GEMINI_API_KEY = abc123` | No spaces around `=` |
+| `GEMINI_API_KEY=abc123` | `# GEMINI_API_KEY=abc123` | A `#` at the start switches the line off |
+| `GEMINI_API_KEY=abc123` | `abc123` | Keep the name and the `=` |
+
+> 🔒 **Keep keys private.** Never put them in an email, chat, screenshot or GitHub. If one gets
+> out, delete it on the website you got it from and create a new one.
+
+### Step 5: Check that it works (free)
+
+```powershell
+npm.cmd run mine -- --list
+```
+
+You should see a list of competitors. This checks the installation. Your keys are tested by the
+first real run in step 7.
+
+### Step 6: Connect Reddit (optional)
+
+Skip this if you're unsure; everything else still works. Reddit needs one extra free program
+called Agent Reach. On Windows, paste these **one at a time** in the same terminal:
+
+| Order | Paste this | What it does |
+|---|---|---|
+| 1 | `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 \| iex"` | Installs a helper. **Then close VS Code and open it again** |
+| 2 | `uv tool install https://github.com/Panniantong/Agent-Reach/releases/latest/download/agent-reach.zip` | Installs Agent Reach |
+| 3 | `agent-reach setup` | First-time setup |
+| 4 | `agent-reach add reddit` | Adds Reddit |
+| 5 | `agent-reach login reddit` | Opens a browser: **log in to Reddit there**. It may open behind other windows |
+| 6 | `agent-reach check reddit --text` | Shows **PASS** or **FAIL** |
+
+Use a spare Reddit account if you can. The tool only reads; it never posts, comments or messages.
+Mac steps and more help: [Set up Reddit with Agent Reach](#3-set-up-reddit-with-agent-reach).
+
+### Step 7: Run it
+
+**Close the Excel file first**, then start small, with one competitor:
+
+```powershell
+npm.cmd run mine -- --competitors courtreserve --sources web,appstore
+```
+
+If that works, choose what you need:
+
+| I want to… | Paste this | Uses credits? |
+|---|---|---|
+| Check **one** competitor (change the name) | `npm.cmd run mine -- --competitors teamsnap` | Yes, a little |
+| Check **a few** | `npm.cmd run mine -- --competitors "teamsnap,mindbody"` | Yes |
+| Check **everything** | `npm.cmd run mine` | Yes, the most: about 250 Firecrawl credits and 45 minutes or more |
+| Rebuild the Excel file from saved results | `npm.cmd run export` | **No** |
+| See competitor names to use | `npm.cmd run mine -- --list` | **No** |
+
+Keep VS Code open and your computer awake until you see **Complaint Miner run complete**. To stop
+early, press **Ctrl + C**.
+
+**Did it work?** The tool says *run complete* even if a key is wrong, so check these numbers at
+the end:
+
+| Look for | Good | Problem |
+|---|---|---|
+| `"failed"` | `0` | Higher: usually a wrong Gemini key or its limit. See the table at the end of this guide |
+| `"errors"` | `0` | Higher: some pages couldn't be read. A few is normal |
+| `"newComplaints"` | Above `0` | `0` is fine if nothing new was posted and `"failed"` is `0` |
+
+### Step 8: Open your results
+
+Open the folder **`output` → `complaint-miner`** and double-click **`complaint-miner.xlsx`**. Then
+see [how to use the workbook](#2-for-the-sales-team-using-the-workbook).
+
+**Want the complaints already collected?** They aren't on GitHub, so a new setup starts empty.
+Before your first run, ask the person who runs the tool for their `output/complaint-miner` folder
+and copy it to the same place in yours. Don't replace your folder after you have run the tool,
+because that erases your own results.
+
+### If something goes wrong
+
+| You see | Do this |
+|---|---|
+| `npm.cmd is not recognized` | Install Node.js (step 1), then restart your computer |
+| `Could not read package.json` | You opened the wrong folder. Repeat step 2, part 4 |
+| `Cannot find module` | Run `npm.cmd install` again (step 3) |
+| `Set GEMINI_API_KEY (or OPENAI_API_KEY)…` | The Gemini key is missing from `.env`, or you didn't save (step 4) |
+| `"failed"` is above 0 at the end of a run | Open the newest folder in `output/complaint-miner/runs`, then `report.json`, and find `"errors"` near it. The next two rows explain the common ones |
+| `Gemini request failed (400)`, `(401)` or `(403)` | The Gemini key is wrong. Copy it again (step 4) |
+| `Gemini request failed (429)` | The Gemini limit was reached. Wait, then run again; nothing is lost |
+| `Web skipped: FIRECRAWL_API_KEY is not set` | Add the Firecrawl key (step 4) |
+| `Firecrawl … (401)` | The Firecrawl key is wrong. Copy it again (step 4) |
+| `Firecrawl … (402)` | Firecrawl credits have run out. Tell your manager |
+| `Reddit skipped` | Fine if you skipped step 6. The rest still runs |
+| `NEED_LOGIN` | Run `agent-reach login reddit` and log in again |
+| Reddit search shows `UPSTREAM_BROKEN` | Reddit search is down for now. Add `--reddit-searches 0` to the end of your `mine` command |
+| `complaint-miner.xlsx is open in another program` | Close Excel, then run `npm.cmd run export` |
+
+Still stuck? Send the developer a screenshot of the terminal, **but never of your `.env` file**.
+
+### The rules
+
+- **Never contact the people who wrote the complaints.** Use what you learn with your own prospects.
+- **Open the source link before using a quote or a club name.**
+- **Alerts marked "Date unknown" may be old.** Check the post first.
+
+---
+
 ## 1. Who this is for
 
 | Reader | What to read | What you get |
 |---|---|---|
-| **Sales team** | Sections 2, 7 and 9 (first two commands) | A ranked list of real competitor complaints, with the exact quote and a link to the source, to use in outreach and calls |
+| **Sales team** | The [setup guide](#start-here-sales-team-setup-guide) (only if you run the tool yourself), then sections 2 and 7 | A ranked list of real competitor complaints, with the exact quote and a link to the source, to use in outreach and calls |
 | **Manager** | Sections 3, 4, 6, 13 and 15, plus [docs/10X-GOALS.md](docs/10X-GOALS.md) | How the data is gathered, why it can be trusted, what it costs, what it deliberately doesn't do, and the 10x plan |
 | **Developers** | Everything, especially 8, 11, 12 and 14, plus [docs/INTEGRATION.md](docs/INTEGRATION.md) | How to install, configure, extend and host it, and how to integrate the insights API into the WareSport website |
 
@@ -118,10 +310,9 @@ threads to act on.
 > **Please close the workbook in Excel before a run.** Excel locks open files. If it's open, the
 > run saves a dated copy (`complaint-miner-<date>.xlsx`) instead.
 
-**Running the miner yourself?** Reddit complaints (often the most candid ones, from club owners)
-need Agent Reach installed and logged in on your computer. Follow
-[Set up Reddit with Agent Reach](#3-set-up-reddit-with-agent-reach) once. If someone else runs the
-miner and shares the workbook, you don't need any setup.
+**Running the miner yourself?** Follow the
+[sales team setup guide](#start-here-sales-team-setup-guide) once. If someone else runs the miner
+and shares the workbook, you don't need any setup.
 
 **Contacting people:** the tool deliberately doesn't collect contact details and isn't built for
 emailing reviewers. Use it to understand competitor weaknesses, find which platforms prospects
@@ -140,7 +331,7 @@ flowchart LR
     end
     W -- "Reddit links found on the web" --> R
     Collect --> F["2. Relevance + freshness filters<br/>must name a competitor · not already processed · not older than 2 years"]
-    F --> L["3. Analyst agent (OpenAI)<br/>extracts complaints as structured JSON"]
+    F --> L["3. Analyst agent (Gemini)<br/>extracts complaints as structured JSON"]
     L --> V["4. Validation<br/>quote must match the source word for word<br/>vendor marketing dropped · old reviews dropped<br/>4–5★ cons capped at low severity"]
     V --> S["5. Scoring<br/>Lead Score + Hot / Warm / Cold"]
     S --> I["6. Market intelligence<br/>competitor map · trends · sport/region · clusters<br/>hot accounts & conversations · playbooks"]
@@ -206,7 +397,7 @@ up newly posted complaints and pages that failed last time.
 | **Review sites** (Capterra, G2, Software Advice, GetApp, Trustpilot) | Firecrawl search + scrape | `FIRECRAWL_API_KEY` | Many reviews are mostly positive with a "cons" section. The star rating is recorded so these are weighted down |
 | **Forums and communities** | Firecrawl search (past year) + scrape | `FIRECRAWL_API_KEY` | Facebook and Instagram can't be scraped and are skipped |
 | **Apple App Store** | Apple's free public review feed | None | Up to 100 most recent reviews per app per run. Apple sometimes throttles the feed; the run report warns when that happens |
-| **AI analysis** | OpenAI chat completions in JSON mode (`gpt-4o-mini` by default) | `OPENAI_API_KEY` | Gemini is supported as a fallback (section 11) |
+| **AI analysis** | Google Gemini in JSON mode (`gemini-3.5-flash` by default) | `GEMINI_API_KEY` | OpenAI is supported as a fallback (section 11) |
 
 ---
 
@@ -277,7 +468,7 @@ The tier is a suggestion to help prioritise. Sales should make the final call.
 | Need | Why |
 |---|---|
 | **Node.js 18+** | Runs the miner |
-| **OpenAI API key** | AI analysis of complaints |
+| **Gemini API key** | AI analysis of complaints |
 | **Firecrawl API key** ([firecrawl.dev](https://firecrawl.dev)) | Web search and scraping of review sites and forums |
 | **Agent Reach** (optional, for Reddit) | Free Python tool installed with [uv](https://docs.astral.sh/uv/). Full steps in [Set up Reddit with Agent Reach](#3-set-up-reddit-with-agent-reach). Without it, Reddit is skipped with a warning and everything else still runs |
 
@@ -299,11 +490,11 @@ Open `.env` and fill in:
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `OPENAI_API_KEY` | Yes | AI analysis |
+| `GEMINI_API_KEY` | Yes | AI analysis |
 | `FIRECRAWL_API_KEY` | Yes, for web sources | Review sites and forums |
-| `COMPLAINT_MINER_LLM_PROVIDER` | No (default `openai`) | `openai` or `gemini` |
-| `COMPLAINT_MINER_MODEL` | No (default `gpt-4o-mini`) | Any chat model your key can use |
-| `GEMINI_API_KEY` | No | Only if using Gemini instead of OpenAI |
+| `COMPLAINT_MINER_LLM_PROVIDER` | No (default `gemini`) | `gemini` or `openai` |
+| `COMPLAINT_MINER_MODEL` | No (default `gemini-3.5-flash`) | Any chat model your key can use |
+| `OPENAI_API_KEY` | No | Only if using OpenAI instead of Gemini |
 | `COMPLAINT_MINER_MAX_AGE_DAYS` | No (default `730`) | Drop complaints older than this |
 | `COMPLAINT_MINER_OUTPUT_DIR` | No (default `output/complaint-miner`) | Where results go |
 | `COMPLAINT_MINER_CRON` | No (default `0 8 * * 1,4`) | Schedule for `npm run schedule` (Mon + Thu 08:00) |
@@ -515,7 +706,7 @@ Avoid aliases that are common words (e.g. "Upper Hand" on its own) or results ge
 | `redditQueriesPerCompetitor` / `redditReadsPerCompetitor` | 2 / 5 | Reddit searches / posts read per competitor |
 | `appStoreCountries` / `appStorePages` / `appStoreMaxRating` | `["us"]` / 2 / 3 | App Store countries, pages of 50 reviews, highest star rating kept |
 | `agentReachSearchSpacingMs` / `agentReachReadSpacingMs` / `agentReachRetryWaitMs` | 11000 / 4000 / 20000 | Politeness delays for Reddit |
-| `llmModels` | `gpt-4o-mini` / `gemini-3.5-flash` | Default model per provider |
+| `llmModels` | `gemini-3.5-flash` / `gpt-4o-mini` | Default model per provider |
 | `llmConcurrency` / `llmMaxCharsPerChunk` / `maxDocCharsTotal` | 3 / 12000 / 36000 | AI parallelism and how much text is sent per page |
 
 Other things you can edit:
@@ -543,7 +734,7 @@ Other things you can edit:
 │   │   ├── agent-reach-client.js  runs the agent-reach CLI, parses its JSON, maps error codes
 │   │   ├── firecrawl-client.js    Firecrawl /search + /scrape with rate-limit backoff
 │   │   ├── app-store-client.js    iTunes Search API + customer-review RSS feed
-│   │   └── llm-client.js          OpenAI (default) / Gemini JSON-mode completion
+│   │   └── llm-client.js          Gemini (default) / OpenAI JSON-mode completion
 │   ├── collectors/              one collector agent per source → "documents"
 │   │   ├── reddit-collector.js
 │   │   ├── web-collector.js
@@ -615,7 +806,8 @@ Measured on real runs in October 2026:
 
 - **Firecrawl:** about 2 credits per search and 1 per page. Watch your monthly plan allowance.
   Reduce `--web-pages` if credits get tight.
-- **OpenAI:** `gpt-4o-mini` costs cents to low dollars per run at these volumes.
+- **Gemini:** billed per token on your Google plan; check its current price and rate limits for the
+  token volumes above.
 - **App Store and Reddit:** no API cost.
 
 ---
@@ -624,7 +816,7 @@ Measured on real runs in October 2026:
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `Set OPENAI_API_KEY (or GEMINI_API_KEY)…` | No AI key in `.env` | Add `OPENAI_API_KEY`, or use `--dry-run` / `npm run export` |
+| `Set GEMINI_API_KEY (or OPENAI_API_KEY)…` | No AI key in `.env` | Add `GEMINI_API_KEY`, or use `--dry-run` / `npm run export` |
 | `Web skipped: FIRECRAWL_API_KEY is not set` | No Firecrawl key | Add it to `.env` |
 | `Reddit skipped: agent-reach CLI not available` | Agent Reach missing, or not on PATH in this terminal | Install it ([steps](#3-set-up-reddit-with-agent-reach)), use PowerShell on Windows, or set `AGENT_REACH_BIN` |
 | `Unable to create process using …python.exe` | uv launcher issue in Git Bash and some terminals | Run from PowerShell |

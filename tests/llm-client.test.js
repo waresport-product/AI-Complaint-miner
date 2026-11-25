@@ -27,25 +27,30 @@ afterEach(() => {
 });
 
 describe('complaint-miner llm client', () => {
-    test('uses OpenAI by default, even when a Gemini key is also present', () => {
+    test('uses Gemini by default, even when an OpenAI key is also present', () => {
         process.env.OPENAI_API_KEY = 'o';
-        process.env.GEMINI_API_KEY = 'g';
-        expect(LlmClient.getProvider()).toBe('openai');
-        expect(LlmClient.isConfigured()).toBe(true);
-    });
-
-    test('falls back to Gemini only when there is no OpenAI key; can be forced either way', () => {
         process.env.GEMINI_API_KEY = 'g';
         expect(LlmClient.getProvider()).toBe('gemini');
         expect(LlmClient.getModel()).toBe('gemini-3.5-flash');
+        expect(LlmClient.isConfigured()).toBe(true);
+    });
+
+    test('falls back to OpenAI only when there is no Gemini key; can be forced either way', () => {
+        process.env.OPENAI_API_KEY = 'o';
+        expect(LlmClient.getProvider()).toBe('openai');
+        expect(LlmClient.getModel()).toBe('gpt-4o-mini');
+        process.env.COMPLAINT_MINER_LLM_PROVIDER = 'gemini';
+        expect(LlmClient.getProvider()).toBe('gemini');
+        expect(LlmClient.isConfigured()).toBe(false);
+        process.env.GEMINI_API_KEY = 'g';
         process.env.COMPLAINT_MINER_LLM_PROVIDER = 'openai';
         expect(LlmClient.getProvider()).toBe('openai');
-        expect(LlmClient.isConfigured()).toBe(false);
     });
 
     test('calls OpenAI chat completions in JSON mode and parses the reply', async () => {
         process.env.OPENAI_API_KEY = 'sk-test';
         process.env.GEMINI_API_KEY = 'g';
+        process.env.COMPLAINT_MINER_LLM_PROVIDER = 'openai';
         mockCreate.mockResolvedValue({
             choices: [{ message: { content: '{"complaints":[]}' } }],
             usage: { total_tokens: 77 },
@@ -87,7 +92,7 @@ describe('complaint-miner llm client', () => {
     });
 
     test('throws when no key is configured', async () => {
-        await expect(LlmClient.completeJson({ system: 's', user: 'u' })).rejects.toThrow(/OPENAI_API_KEY is not set/);
+        await expect(LlmClient.completeJson({ system: 's', user: 'u' })).rejects.toThrow(/GEMINI_API_KEY is not set/);
     });
 
     test('parseJson tolerates fenced output', () => {

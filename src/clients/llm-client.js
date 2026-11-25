@@ -4,9 +4,9 @@
  * JSON-mode LLM client for the analyst agent.
  *
  * Providers:
- *   openai (default) — OpenAI chat completions (JSON mode)
- *   gemini (fallback, only when no OPENAI_API_KEY is set) — Google Generative Language REST API via axios
- * Force one with COMPLAINT_MINER_LLM_PROVIDER=openai|gemini; model via COMPLAINT_MINER_MODEL.
+ *   gemini (default) — Google Generative Language REST API via axios
+ *   openai (fallback, only when no GEMINI_API_KEY is set) — OpenAI chat completions (JSON mode)
+ * Force one with COMPLAINT_MINER_LLM_PROVIDER=gemini|openai; model via COMPLAINT_MINER_MODEL.
  */
 
 const axios = require("axios");
@@ -22,8 +22,8 @@ let openaiClient = null;
 function getProvider() {
     const forced = String(process.env.COMPLAINT_MINER_LLM_PROVIDER || "").trim().toLowerCase();
     if (forced === "gemini" || forced === "openai") return forced;
-    if (!process.env.OPENAI_API_KEY && process.env.GEMINI_API_KEY) return "gemini";
-    return "openai";
+    if (!process.env.GEMINI_API_KEY && process.env.OPENAI_API_KEY) return "openai";
+    return "gemini";
 }
 
 function isConfigured() {
