@@ -166,7 +166,7 @@ describe('workbook intelligence sheets', () => {
 
         const wb = new ExcelJS.Workbook();
         await wb.xlsx.readFile(files.workbook);
-        expect(wb.worksheets.map((s) => s.name)).toEqual(['Complaints', 'Competitor Map', 'Issue Clusters', 'Trends', 'Playbooks', 'Hot Conversations', 'Alerts']);
+        expect(wb.worksheets.map((s) => s.name)).toEqual(['Complaints', 'Competitor Map', 'Issue Clusters', 'Playbooks', 'Hot Conversations', 'Alerts']);
         for (const sheet of wb.worksheets) sheet.getRow(1).eachCell((cell) => expect(cell.note).toBeTruthy());
         expect(wb.getWorksheet('Competitor Map').getCell('A2').value).toBe('Mindbody');
         expect(JSON.parse(fs.readFileSync(files.insights, 'utf8')).schemaVersion).toBe(1);

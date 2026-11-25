@@ -92,7 +92,7 @@ built on the `feature/10x-market-intelligence` branch (see section 4).
 | **Sales playbooks** per competitor: ranked pains, proof quotes, WareSport angle, discovery questions, suggested opener | G8 | ✅ Built (19 generated) |
 | **CRM-ready alerts**: Hot, switching intent and rising trend, each raised once; Slack/Teams/Zapier-compatible webhook; retries if delivery fails | G9 | ✅ Built (first export raised 42: 35 Hot, 4 switching, 3 rising trends) |
 | **Insights API** for the website: read-only, filterable, token-protected | G1 | ✅ Built |
-| **No spreadsheet work**: six auto-built sheets (Competitor Map, Issue Clusters, Trends, Playbooks, Hot Conversations, Alerts) plus `insights.json` | G1 | ✅ Built |
+| **No spreadsheet work**: five auto-built sheets (Competitor Map, Issue Clusters, Playbooks, Hot Conversations, Alerts) plus `insights.json` | G1 | ✅ Built |
 
 ### Phase 2: Always-on and in the tools (weeks 1–8)
 

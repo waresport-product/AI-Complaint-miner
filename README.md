@@ -101,13 +101,12 @@ which is handy for a "what's new this week" review.
 
 ### The intelligence sheets (no filtering needed)
 
-The same workbook has six more sheets, rebuilt on every run:
+The same workbook has five more sheets, rebuilt on every run:
 
 | Sheet | What it answers |
 |---|---|
 | **Competitor Map** | Which competitors have the most unhappy customers right now? Complaints, Hot, people considering a switch, complaints from owners/staff, top 3 pains, and whether complaints are *rising / falling / new / steady* (last 30 days vs the 60 before) |
 | **Issue Clusters** | What are people actually complaining about, across all competitors? E.g. "AI chatbot instead of human support", "Contracts, cancellation & auto-renewal", "In-app ads", each with counts, trend, top competitors and an example quote. *Emerging* clusters are new recurring phrases the system spotted by itself |
-| **Trends** | What's heating up this month? Competitor × pain combinations that are *rising* or *new* |
 | **Playbooks** | How should I pitch against competitor X? Per competitor: the pains to lead with (ranked by evidence), a suggested opener, the WareSport angle, discovery questions, and a proof quote with its link |
 | **Hot Conversations** | Where are owners most actively unhappy? Threads and review pages ranked by Hot complaints, switching intent and owner involvement |
 | **Alerts** | What's new and urgent? New Hot complaints, people considering a switch, and rising trends. Also sent to Slack, Teams or a CRM if a webhook is set up (section 9) |
@@ -189,7 +188,7 @@ flowchart LR
    **once each**, saved to `alerts.json`, and sent to a Slack, Teams or CRM webhook if one is
    configured.
 8. **Export.** All complaints found so far, across every run, go into one workbook, best first,
-   together with the six intelligence sheets and `insights.json`. Duplicates are merged, so the
+   together with the five intelligence sheets and `insights.json`. Duplicates are merged, so the
    same quote is never listed twice. The **insights API** (`npm run api`) serves the same data to
    the WareSport website.
 
@@ -472,7 +471,7 @@ Everything is under `output/complaint-miner/` (git-ignored):
 
 | File | Purpose | Keep it? |
 |---|---|---|
-| `complaint-miner.xlsx` | **The sales workbook**: every complaint so far, best first, plus the six intelligence sheets | Yes |
+| `complaint-miner.xlsx` | **The sales workbook**: every complaint so far, best first, plus the five intelligence sheets | Yes |
 | `insights.json` | Competitor map, trends, clusters, accounts, conversations and playbooks as JSON (`schemaVersion` 1) for the website or API | Rebuilt every run |
 | `alerts.json` | Alerts already raised (so each fires once) and recent alert history | **Yes**: deleting it re-raises old alerts |
 | `runs/<date-time>/new-complaints.xlsx` | Only what that run added | Optional |
@@ -569,7 +568,7 @@ Other things you can edit:
 │   │   └── alert-store.js       alerts already raised + history
 │   ├── exporters/
 │   │   ├── excel-exporter.js    workbook (columns, header notes, tier colours, links) + insights.json
-│   │   └── insight-sheets.js    Competitor Map, Issue Clusters, Trends, Playbooks, Hot Conversations, Alerts
+│   │   └── insight-sheets.js    Competitor Map, Issue Clusters, Playbooks, Hot Conversations, Alerts
 │   └── helpers/                 text matching, dates, chunking, concurrency
 ├── tests/                       Jest unit tests (all network/AI calls mocked)
 ├── .env.example                 template for .env

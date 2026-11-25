@@ -42,15 +42,6 @@ const CLUSTER_COLUMNS = Object.freeze([
     { key: "exampleUrl", header: "Example Source", width: 40, link: true, note: "Link to the example's source." },
 ]);
 
-const TREND_COLUMNS = Object.freeze([
-    { key: "competitorName", header: "Competitor", width: 16, note: "Competing platform." },
-    { key: "painCategoryLabel", header: "Pain Category", width: 26, note: "Type of problem that is heating up." },
-    { key: "status", header: "Status", width: 9, note: TREND_NOTE },
-    { key: "recent", header: "Last 30 Days", width: 10, note: "Complaints posted in the last 30 days." },
-    { key: "priorAvg", header: "Prior Avg / 30d", width: 11, note: "Average per 30 days over the 60 days before." },
-    { key: "changePct", header: "Change %", width: 9, note: "Change vs. the prior average (blank when there was nothing before)." },
-]);
-
 const PLAYBOOK_COLUMNS = Object.freeze([
     { key: "competitorName", header: "Competitor", width: 16, note: "Competing platform the playbook is for." },
     { key: "rank", header: "#", width: 4, note: "Pain rank for this competitor (1 = lead with this)." },
@@ -114,8 +105,6 @@ function addInsightSheets(workbook, addSheet, insights, alerts = []) {
         exampleUrl: c.examples[0] ? c.examples[0].url : null,
     })));
 
-    addSheet(workbook, "Trends", TREND_COLUMNS, insights.trends.movers);
-
     const playbookRows = [];
     for (const p of insights.playbooks) {
         p.topPains.forEach((pain, i) => {
@@ -148,7 +137,6 @@ module.exports = {
     addInsightSheets,
     COMPETITOR_MAP_COLUMNS,
     CLUSTER_COLUMNS,
-    TREND_COLUMNS,
     PLAYBOOK_COLUMNS,
     CONVERSATION_COLUMNS,
     ALERT_COLUMNS,

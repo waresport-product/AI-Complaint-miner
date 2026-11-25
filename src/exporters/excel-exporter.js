@@ -4,7 +4,7 @@
  * Writes the sales-facing Excel workbooks. Swap for a Google Sheets exporter later — same write() input.
  *
  *   <dir>/complaint-miner.xlsx                 "Complaints" (cumulative, best first) + market-intelligence
- *                                              sheets (Competitor Map, Issue Clusters, Trends, Playbooks,
+ *                                              sheets (Competitor Map, Issue Clusters, Playbooks,
  *                                              Hot Conversations, Alerts)
  *   <dir>/insights.json                        the same intelligence as JSON, for the website/API
  *   <dir>/runs/<stamp>/new-complaints.xlsx     what this run added
